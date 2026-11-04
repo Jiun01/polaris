@@ -1,0 +1,29 @@
+Polaris — multi-tenant AI chatbot platform
+Copyright (c) 2026 Jiun (https://getpolaris.my)
+
+Licensed under the Business Source License 1.1 (see LICENSE). The
+Additional Use Grant permits personal, internal, and self-hosted use;
+it does not permit offering the Licensed Work or derivatives to third
+parties as a hosted, white-labeled, or resold service. On 2030-11-04 the
+license converts to Apache-2.0. Please retain this notice, or an
+equivalent credit ("Polaris by Jiun, https://getpolaris.my") in your
+NOTICE file or credits page, when redistributing.
+
+Third-party components
+----------------------
+
+This project integrates with, and is developed against, the following
+upstream projects. They remain governed by their own licenses, which
+are preserved in their respective fork repositories:
+
+- Chatwoot (https://github.com/chatwoot/chatwoot)
+  MIT License — see the polaris-chatwoot repository. The fork contains
+  Polaris-specific modifications; it is not vanilla upstream.
+
+- Easy!Appointments (https://github.com/alextselegidis/easyappointments)
+  GNU General Public License v3.0 — see the polaris-ea-fork repository.
+  The fork contains Polaris-specific modifications; it is not vanilla
+  upstream.
+
+Nothing in this repository grants rights over the upstream projects;
+their licenses continue to apply to their own code.

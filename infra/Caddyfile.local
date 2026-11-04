@@ -1,0 +1,82 @@
+# Polaris v2 — local VPS-mimic Caddyfile
+#
+# Mirrors the production topology (api / portal / admin subdomains behind
+# Caddy) without requiring TLS cert trust. Modern browsers (Chrome, Firefox)
+# resolve *.localhost to 127.0.0.1 per RFC 6761 without hosts-file edits.
+#
+# Usage:
+#   docker compose -f infra/docker-compose.yml -f infra/docker-compose.local-vps.yml up
+#
+# URLs once up:
+#   http://api.localhost      — FastAPI  (health: http://api.localhost/v1/health)
+#   http://portal.localhost   — Tenant portal (login page)
+#   http://admin.localhost    — Platform admin (Caddy basic-auth: admin / polaris-local-dev)
+#
+# To mimic production HTTPS: remove `auto_https off`, remove the `http://`
+# scheme prefixes, and run `caddy trust` on the host to trust Caddy's local
+# CA. Caddy handles Let's Encrypt automatically in production.
+{
+	# Disable automatic HTTPS redirect so *.localhost sites work over HTTP.
+	auto_https off
+	# Disable Caddy's admin API socket (not needed for local dev).
+	admin off
+}
+
+http://api.localhost {
+	reverse_proxy polaris-api:8000
+
+	# Maintenance fallback when the API container is down.
+	handle_errors {
+		@down expression {http.error.status_code} >= 502
+		handle @down {
+			header Content-Type application/json
+			header Retry-After 60
+			rewrite * /api-503.json
+			file_server {
+				root /etc/caddy/maintenance
+			}
+		}
+	}
+}
+
+http://portal.localhost {
+	reverse_proxy polaris-portal:3000
+
+	# Maintenance fallback when the portal container is down.
+	handle_errors {
+		@down expression {http.error.status_code} >= 502
+		handle @down {
+			rewrite * /portal.html
+			file_server {
+				root /etc/caddy/maintenance
+			}
+		}
+	}
+}
+
+http://admin.localhost {
+	# Outer basic-auth gate (ADR-030 Amendment 2026-05-20).
+	# Username: admin  Password for local dev: polaris-local-dev
+	# Production: generate a fresh hash with `caddy hash-password` and
+	# store it in the host env as CADDY_ADMIN_BASIC_AUTH_HASH.
+	basic_auth {
+		admin {$CADDY_ADMIN_BASIC_AUTH_HASH}
+	}
+
+	reverse_proxy polaris-admin:3001 {
+		# Shared-secret header proves request came through Caddy (not
+		# direct-to-container). Admin app verifies this in extractClickIp().
+		header_up X-Polaris-Caddy-Token {$ADMIN_CADDY_PROXY_TOKEN}
+		# Propagate the real client IP for the IP-bind check in the jwt callback.
+		header_up X-Real-IP {client_ip}
+		header_up X-Forwarded-For {client_ip}
+	}
+
+	# Maintenance fallback when the admin container is down.
+	handle_errors {
+		@down expression {http.error.status_code} >= 502
+		handle @down {
+			respond "Admin dashboard temporarily unavailable. Retry in a minute." 503
+		}
+	}
+}

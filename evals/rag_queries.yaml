@@ -1,0 +1,167 @@
+version: 1
+suite: rag_queries
+threshold: 0.8 # top-1 recall; plan decision-lock 4
+cases:
+  - id: rag-001
+    query: "what time you open"
+    seeded_chunks:
+      - id: chunk-hours-01
+        content: "Operating hours: Mon-Sun 9am to 9pm. Closed on public holidays except for special seasonal hours announced in-store."
+        source: faq.md
+      - id: chunk-pricing-01
+        content: "Starter plan: RM99/mo. Pro: RM299/mo. Ultra: RM799/mo. Enterprise: custom pricing — contact sales."
+        source: pricing.md
+      - id: chunk-shipping-01
+        content: "Free delivery on orders above RM50 within Klang Valley. Outside KL: standard shipping rates apply."
+        source: shipping.md
+    expected_top_chunk: chunk-hours-01
+
+  - id: rag-002
+    query: "berapa harga plan starter"
+    seeded_chunks:
+      - id: chunk-pricing-01
+        content: "Starter plan: RM99/mo. Pro: RM299/mo. Ultra: RM799/mo. Enterprise: custom pricing — contact sales."
+        source: pricing.md
+      - id: chunk-hours-01
+        content: "Operating hours: Mon-Sun 9am to 9pm."
+        source: faq.md
+    expected_top_chunk: chunk-pricing-01
+
+  - id: rag-003
+    query: "free shipping minimum"
+    seeded_chunks:
+      - id: chunk-shipping-01
+        content: "Free delivery on orders above RM50 within Klang Valley."
+        source: shipping.md
+      - id: chunk-pricing-01
+        content: "Starter plan: RM99/mo. Pro: RM299/mo."
+        source: pricing.md
+    expected_top_chunk: chunk-shipping-01
+
+  - id: rag-004
+    query: "return policy"
+    seeded_chunks:
+      - id: chunk-returns-01
+        content: "Returns accepted within 30 days of purchase with original receipt. Items must be unused and in original packaging."
+        source: returns.md
+      - id: chunk-shipping-01
+        content: "Free delivery on orders above RM50."
+        source: shipping.md
+    expected_top_chunk: chunk-returns-01
+
+  - id: rag-005
+    query: "do you do international shipping"
+    seeded_chunks:
+      - id: chunk-shipping-international-01
+        content: "International shipping available to Singapore, Brunei, Thailand. ASEAN flat rate RM45. Other regions: enquire via email."
+        source: shipping.md
+      - id: chunk-shipping-01
+        content: "Free delivery on orders above RM50 within Klang Valley."
+        source: shipping.md
+    expected_top_chunk: chunk-shipping-international-01
+
+  - id: rag-006
+    query: "alamat dan no telefon kedai"
+    seeded_chunks:
+      - id: chunk-contact-01
+        content: "Lot 123, Jalan Ampang, 50450 Kuala Lumpur. Phone: +60 3-1234 5678. WhatsApp: +60 11-5458 1688."
+        source: contact.md
+      - id: chunk-hours-01
+        content: "Operating hours: Mon-Sun 9am to 9pm."
+        source: faq.md
+    expected_top_chunk: chunk-contact-01
+
+  - id: rag-007
+    query: "How do I upgrade my plan from Starter to Pro?"
+    seeded_chunks:
+      - id: chunk-upgrade-01
+        content: "Plan upgrades: log into the portal, go to Billing → Change Plan, select the new tier. Pro-rated charges apply mid-cycle."
+        source: billing.md
+      - id: chunk-pricing-01
+        content: "Starter plan: RM99/mo. Pro: RM299/mo."
+        source: pricing.md
+    expected_top_chunk: chunk-upgrade-01
+
+  - id: rag-008
+    query: "你们支持哪些付款方式"
+    seeded_chunks:
+      - id: chunk-payment-01
+        content: "Accepted payment methods: Visa, Mastercard, FPX online banking, GrabPay, Touch n Go eWallet, Boost. Bank transfer available for invoices above RM5000."
+        source: payment.md
+      - id: chunk-pricing-01
+        content: "Starter plan: RM99/mo."
+        source: pricing.md
+    expected_top_chunk: chunk-payment-01
+
+  - id: rag-009
+    query: "warranty terms"
+    seeded_chunks:
+      - id: chunk-warranty-01
+        content: "Standard warranty: 12 months from purchase. Extended warranty available at checkout for additional 12 or 24 months."
+        source: warranty.md
+      - id: chunk-returns-01
+        content: "Returns accepted within 30 days of purchase with original receipt."
+        source: returns.md
+    expected_top_chunk: chunk-warranty-01
+
+  - id: rag-010
+    query: "cancel subscription"
+    seeded_chunks:
+      - id: chunk-cancel-01
+        content: "Cancel anytime via Billing → Manage Subscription → Cancel. Access continues until end of current billing period. No refund for partial month."
+        source: billing.md
+      - id: chunk-upgrade-01
+        content: "Plan upgrades via Billing → Change Plan."
+        source: billing.md
+    expected_top_chunk: chunk-cancel-01
+
+  - id: rag-011
+    query: "where can I download the app"
+    seeded_chunks:
+      - id: chunk-app-01
+        content: "Mobile app: download from Apple App Store or Google Play. Web version at app.example.com. No installation needed for the web version."
+        source: app.md
+      - id: chunk-contact-01
+        content: "Lot 123, Jalan Ampang."
+        source: contact.md
+    expected_top_chunk: chunk-app-01
+
+  - id: rag-012
+    query: "data privacy and PDPA"
+    seeded_chunks:
+      - id: chunk-privacy-01
+        content: "PDPA compliant. We collect minimal personal data for service delivery only. Full privacy policy at example.com/privacy. Data deletion requests honored within 30 days."
+        source: privacy.md
+      - id: chunk-warranty-01
+        content: "Standard warranty: 12 months from purchase."
+        source: warranty.md
+    expected_top_chunk: chunk-privacy-01
+
+  # --- c964fcc hybrid-recall regression cases (report F4: BM25 OR-semantics) ---
+  - id: rag-013
+    # Typo + Manglish variant of rag-001. Pins typo-tolerant recall: the OR-ed
+    # BM25 path + vector leg must still rank hours #1 despite none of the lexemes
+    # matching cleanly. Under the old AND-semantics this scrambled to no BM25 hit.
+    query: "wat tym u guys opn ah"
+    seeded_chunks:
+      - id: chunk-hours-01
+        content: "Operating hours: Mon-Sun 9am to 9pm. Closed on public holidays except for special seasonal hours announced in-store."
+        source: faq.md
+      - id: chunk-pricing-01
+        content: "Starter plan: RM99/mo. Pro: RM299/mo. Ultra: RM799/mo."
+        source: pricing.md
+    expected_top_chunk: chunk-hours-01
+
+  - id: rag-014
+    # Extra non-matching words ("overseas abroad") must NOT suppress the hit.
+    # OR-semantics: ANY matching lexeme keeps the chunk a candidate; AND-joining
+    # (the pre-c964fcc bug) returned nothing because not every word matched.
+    query: "do you ship internationally overseas abroad"
+    seeded_chunks:
+      - id: chunk-shipping-international-01
+        content: "International shipping available to Singapore, Brunei, Thailand. ASEAN flat rate RM45. Other regions: enquire via email."
+        source: shipping.md
+      - id: chunk-returns-01
+        content: "Returns accepted within 30 days of purchase."
+        source: returns.md
+    expected_top_chunk: chunk-shipping-international-01

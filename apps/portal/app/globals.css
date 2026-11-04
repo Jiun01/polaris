@@ -1,0 +1,396 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Polaris portal theme — Chatwoot design-parity port.
+ *
+ * TWO coexisting token systems, by design:
+ *   1. shadcn semantic tokens (HSL, space-separated) — `--primary` etc.,
+ *      consumed via `hsl(var(--primary))`. Re-pointed to Chatwoot values
+ *      (primary = Woot blue #2781F6). Drives every existing component.
+ *   2. Chatwoot "next" scales (RGB, space-separated) — `--slate-9` etc.,
+ *      consumed via `rgb(var(--slate-9) / <alpha-value>)` as `n-*` Tailwind
+ *      classes. Ported verbatim from the CW fork for first-class parity.
+ *
+ * NEVER mix the two formats in one var (HSL = percentages, n-* = raw RGB).
+ * Components use semantic utilities (bg-background, text-foreground, …) or
+ * n-* utilities (bg-n-blue-9, text-n-slate-11, …) — never hard-coded hex.
+ */
+@layer base {
+  :root {
+    /* ── shadcn semantic tokens (Chatwoot-tuned) ───────────────────── */
+    --background: 0 0% 96.9%;
+    --foreground: 210 13% 13%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 210 13% 13%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 13% 13%;
+
+    --primary: 214 91% 56%; /* Woot blue #2781F6 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 95.3%;
+    --secondary-foreground: 210 13% 13%;
+
+    --muted: 0 0% 95.3%;
+    --muted-foreground: 231 6% 57%; /* slate-9 #8b8d98 */
+
+    --accent: 213 100% 96%; /* faint blue tint (nav-active / hover) */
+    --accent-foreground: 214 80% 42%;
+
+    --destructive: 348 75% 59%; /* ruby-9 #e54666 */
+    --destructive-foreground: 0 0% 100%;
+
+    --warning: 42 100% 62%; /* amber-9 #ffc53d */
+    --warning-foreground: 210 13% 13%; /* dark text on yellow */
+
+    --success: 173 80% 36%; /* teal-9 #12a594 */
+    --success-foreground: 0 0% 100%;
+
+    --border: 0 0% 91.8%; /* border-weak 234 */
+    --input: 0 0% 91.8%;
+    --ring: 214 91% 56%;
+
+    --radius: 0.5rem;
+
+    /* ── Chatwoot n-* scales (RGB, space-separated) ────────────────── */
+    --slate-1: 252 252 253;
+    --slate-2: 249 249 251;
+    --slate-3: 240 240 243;
+    --slate-4: 232 232 236;
+    --slate-5: 224 225 230;
+    --slate-6: 217 217 224;
+    --slate-7: 205 206 214;
+    --slate-8: 185 187 198;
+    --slate-9: 139 141 152;
+    --slate-10: 128 131 141;
+    --slate-11: 96 100 108;
+    --slate-12: 28 32 36;
+
+    --iris-1: 253 253 255;
+    --iris-2: 248 248 255;
+    --iris-3: 240 241 254;
+    --iris-4: 230 231 255;
+    --iris-5: 218 220 255;
+    --iris-6: 203 205 255;
+    --iris-7: 184 186 248;
+    --iris-8: 155 158 240;
+    --iris-9: 91 91 214;
+    --iris-10: 81 81 205;
+    --iris-11: 87 83 198;
+    --iris-12: 39 41 98;
+
+    --blue-1: 251 253 255;
+    --blue-2: 245 249 255;
+    --blue-3: 233 243 255;
+    --blue-4: 218 236 255;
+    --blue-5: 201 226 255;
+    --blue-6: 181 213 255;
+    --blue-7: 155 195 252;
+    --blue-8: 117 171 247;
+    --blue-9: 39 129 246; /* Woot blue */
+    --blue-10: 16 115 233;
+    --blue-11: 8 109 224;
+    --blue-12: 11 50 101;
+
+    --ruby-1: 255 252 253;
+    --ruby-2: 255 247 248;
+    --ruby-3: 254 234 237;
+    --ruby-4: 255 220 225;
+    --ruby-5: 255 206 214;
+    --ruby-6: 248 191 200;
+    --ruby-7: 239 172 184;
+    --ruby-8: 229 146 163;
+    --ruby-9: 229 70 102;
+    --ruby-10: 220 59 93;
+    --ruby-11: 202 36 77;
+    --ruby-12: 100 23 43;
+
+    --amber-1: 254 253 251;
+    --amber-2: 254 251 233;
+    --amber-3: 255 247 194;
+    --amber-4: 255 238 156;
+    --amber-5: 251 229 119;
+    --amber-6: 243 214 115;
+    --amber-7: 233 193 98;
+    --amber-8: 226 163 54;
+    --amber-9: 255 197 61;
+    --amber-10: 255 186 24;
+    --amber-11: 171 100 0;
+    --amber-12: 79 52 34;
+
+    --teal-1: 250 254 253;
+    --teal-2: 243 251 249;
+    --teal-3: 224 248 243;
+    --teal-4: 204 243 234;
+    --teal-5: 184 234 224;
+    --teal-6: 161 222 210;
+    --teal-7: 131 205 193;
+    --teal-8: 83 185 171;
+    --teal-9: 18 165 148;
+    --teal-10: 13 155 138;
+    --teal-11: 0 133 115;
+    --teal-12: 13 61 56;
+
+    --gray-1: 252 252 252;
+    --gray-2: 249 249 249;
+    --gray-3: 240 240 240;
+    --gray-4: 232 232 232;
+    --gray-5: 224 224 224;
+    --gray-6: 217 217 217;
+    --gray-7: 206 206 206;
+    --gray-8: 187 187 187;
+    --gray-9: 141 141 141;
+    --gray-10: 131 131 131;
+    --gray-11: 100 100 100;
+    --gray-12: 32 32 32;
+
+    --violet-1: 253 252 254;
+    --violet-2: 250 248 255;
+    --violet-3: 244 240 254;
+    --violet-4: 235 228 255;
+    --violet-5: 225 217 255;
+    --violet-6: 212 202 254;
+    --violet-7: 194 178 248;
+    --violet-8: 169 153 236;
+    --violet-9: 110 86 207;
+    --violet-10: 100 84 196;
+    --violet-11: 101 85 183;
+    --violet-12: 47 38 95;
+
+    /* n-* semantic surfaces / borders */
+    --background-color: 247 247 247;
+    --surface-1: 254 254 254;
+    --surface-2: 255 255 255;
+    --border-container: 236 236 236;
+    --border-strong: 226 227 231;
+    --border-weak: 234 234 234;
+    --solid-2: 255 255 255;
+    --card-color: 255 255 255;
+    --button-color: 255 255 255;
+    --alpha-1: 215 215 215;
+    --alpha-2: 196 197 198;
+  }
+
+  .dark {
+    /* ── shadcn semantic tokens (dark) ─────────────────────────────── */
+    --background: 240 6% 7%;
+    --foreground: 210 17% 93%;
+
+    --card: 240 5% 10%;
+    --card-foreground: 210 17% 93%;
+
+    --popover: 240 5% 10%;
+    --popover-foreground: 210 17% 93%;
+
+    --primary: 214 91% 56%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 5% 16%;
+    --secondary-foreground: 210 17% 93%;
+
+    --muted: 240 5% 16%;
+    --muted-foreground: 220 7% 60%;
+
+    --accent: 214 40% 20%;
+    --accent-foreground: 213 100% 88%;
+
+    --destructive: 348 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --warning: 42 100% 64%;
+    --warning-foreground: 210 13% 13%;
+
+    --success: 173 70% 41%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 240 5% 18%;
+    --input: 240 5% 18%;
+    --ring: 214 91% 56%;
+
+    /* ── Chatwoot n-* scales (dark) ────────────────────────────────── */
+    --slate-1: 17 17 19;
+    --slate-2: 24 25 27;
+    --slate-3: 33 34 37;
+    --slate-4: 39 42 45;
+    --slate-5: 46 49 53;
+    --slate-6: 54 58 63;
+    --slate-7: 67 72 78;
+    --slate-8: 90 97 105;
+    --slate-9: 105 110 119;
+    --slate-10: 119 123 132;
+    --slate-11: 176 180 186;
+    --slate-12: 237 238 240;
+
+    --iris-1: 19 19 30;
+    --iris-2: 23 22 37;
+    --iris-3: 32 34 72;
+    --iris-4: 38 42 101;
+    --iris-5: 48 51 116;
+    --iris-6: 61 62 130;
+    --iris-7: 74 74 149;
+    --iris-8: 89 88 177;
+    --iris-9: 91 91 214;
+    --iris-10: 84 114 228;
+    --iris-11: 158 177 255;
+    --iris-12: 224 223 254;
+
+    --blue-1: 10 17 28;
+    --blue-2: 15 24 38;
+    --blue-3: 15 39 72;
+    --blue-4: 10 49 99;
+    --blue-5: 18 61 117;
+    --blue-6: 29 84 134;
+    --blue-7: 40 89 156;
+    --blue-8: 48 106 186;
+    --blue-9: 39 129 246;
+    --blue-10: 21 116 231;
+    --blue-11: 126 182 255;
+    --blue-12: 205 227 255;
+
+    --ruby-1: 25 17 19;
+    --ruby-2: 30 21 23;
+    --ruby-3: 58 20 30;
+    --ruby-4: 78 19 37;
+    --ruby-5: 94 26 46;
+    --ruby-6: 111 37 57;
+    --ruby-7: 136 52 71;
+    --ruby-8: 179 68 90;
+    --ruby-9: 229 70 102;
+    --ruby-10: 236 90 114;
+    --ruby-11: 255 148 157;
+    --ruby-12: 254 210 225;
+
+    --amber-1: 22 18 12;
+    --amber-2: 29 24 15;
+    --amber-3: 48 32 8;
+    --amber-4: 63 39 0;
+    --amber-5: 77 48 0;
+    --amber-6: 92 61 5;
+    --amber-7: 113 79 25;
+    --amber-8: 143 100 36;
+    --amber-9: 255 197 61;
+    --amber-10: 255 214 10;
+    --amber-11: 255 202 22;
+    --amber-12: 255 231 179;
+
+    --teal-1: 13 21 20;
+    --teal-2: 17 28 27;
+    --teal-3: 13 45 42;
+    --teal-4: 2 59 55;
+    --teal-5: 8 72 67;
+    --teal-6: 20 87 80;
+    --teal-7: 28 105 97;
+    --teal-8: 32 126 115;
+    --teal-9: 18 165 148;
+    --teal-10: 14 179 158;
+    --teal-11: 11 216 182;
+    --teal-12: 173 240 221;
+
+    --gray-1: 17 17 17;
+    --gray-2: 25 25 25;
+    --gray-3: 34 34 34;
+    --gray-4: 42 42 42;
+    --gray-5: 49 49 49;
+    --gray-6: 58 58 58;
+    --gray-7: 72 72 72;
+    --gray-8: 96 96 96;
+    --gray-9: 110 110 110;
+    --gray-10: 123 123 123;
+    --gray-11: 180 180 180;
+    --gray-12: 238 238 238;
+
+    --violet-1: 20 17 31;
+    --violet-2: 27 21 37;
+    --violet-3: 41 31 67;
+    --violet-4: 50 37 85;
+    --violet-5: 60 46 105;
+    --violet-6: 71 56 135;
+    --violet-7: 86 70 151;
+    --violet-8: 110 86 171;
+    --violet-9: 110 86 207;
+    --violet-10: 125 109 217;
+    --violet-11: 169 153 236;
+    --violet-12: 226 221 254;
+
+    --background-color: 28 29 32;
+    --surface-1: 20 21 23;
+    --surface-2: 22 23 26;
+    --border-strong: 46 45 50;
+    --border-weak: 31 31 37;
+    --border-container: 46 45 50;
+    --solid-2: 29 30 36;
+    --card-color: 28 30 34;
+    --button-color: 42 43 51;
+    --alpha-1: 35 36 42;
+    --alpha-2: 147 153 176;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+/*
+ * Named typography utilities — ported from the Chatwoot fork
+ * (app/javascript/dashboard/assets/scss/_woot.scss). Opt-in classes;
+ * Inter is aliased to font-sans, so `font-sans` resolves to Inter.
+ */
+@layer components {
+  .text-heading-1 {
+    @apply font-sans text-lg font-[520];
+    line-height: 24px;
+    letter-spacing: -0.27px;
+  }
+  .text-heading-2 {
+    @apply font-sans text-base font-medium;
+    line-height: 24px;
+    letter-spacing: -0.27px;
+  }
+  .text-heading-3 {
+    @apply font-sans text-sm font-medium;
+    line-height: 21px;
+    letter-spacing: -0.27px;
+  }
+  .text-body-main {
+    @apply font-sans text-sm font-[420];
+    line-height: 21px;
+    letter-spacing: -0.28px;
+  }
+  .text-body-para {
+    @apply font-sans text-sm font-[420];
+    line-height: 21px;
+    letter-spacing: -0.21px;
+  }
+  .text-label {
+    @apply font-sans text-sm font-medium;
+    line-height: 21px;
+  }
+  .text-label-small {
+    @apply font-sans text-xs font-[440];
+    line-height: 16px;
+    letter-spacing: -0.24px;
+  }
+  .text-button {
+    @apply font-sans text-sm font-[460];
+    line-height: 21px;
+    letter-spacing: -0.28px;
+  }
+  .text-button-small {
+    @apply font-sans text-xs font-[440];
+    line-height: 18px;
+    letter-spacing: -0.24px;
+  }
+}

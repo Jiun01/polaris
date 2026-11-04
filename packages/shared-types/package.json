@@ -1,0 +1,11 @@
+{
+  "name": "@polaris/shared-types",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Polaris v2 shared types — Pydantic SSOT -> JSON Schema -> TS",
+  "main": "typescript/polaris-shared-types.ts",
+  "types": "typescript/polaris-shared-types.ts",
+  "scripts": {
+    "export": "python scripts/export.py"
+  }
+}

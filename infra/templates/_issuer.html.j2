@@ -1,0 +1,12 @@
+{# Shared issuer identity block. Real Polaris issuer details, overridable via
+   the render context (issuer_name, issuer_reg, issuer_sst, issuer_addr_lines,
+   issuer_email, issuer_web) should those ever move to settings/env. #}
+<div class="issuer">
+  <p class="issuer-name">{{ issuer_name | default("POLARIS TECHNOLOGIES") }}</p>
+  <p class="issuer-line">{{ issuer_reg | default("SSM: 202603066744 (AS0511535-P)") }}</p>
+  {% if issuer_sst %}<p class="issuer-line">SST Reg. No.: {{ issuer_sst }}</p>{% endif %}
+  {% for line in issuer_addr_lines | default(["No. 1, Jalan Vista 9, Cheras Vista", "43200 Cheras, Selangor", "Malaysia"]) %}
+  <p class="issuer-line">{{ line }}</p>
+  {% endfor %}
+  <p class="issuer-line">{{ issuer_email | default("billing@getpolaris.my") }} &middot; {{ issuer_web | default("getpolaris.my") }}</p>
+</div>

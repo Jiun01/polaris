@@ -1,0 +1,182 @@
+# Polaris v2 local dev stack — Phase 9 close
+# Brings up: redis + polaris-api + polaris-portal + polaris-admin + mailhog (E2E)
+# No Caddy / reverse proxy in local dev (each app exposes its port directly).
+# Production reverse-proxy: infra/Caddyfile.example
+
+name: polaris
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: polaris-redis
+    command: >-
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-devpassword}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    environment:
+      # REDISCLI_AUTH is read by redis-cli without exposing the password as a
+      # CLI argument (`ps aux` would otherwise leak it). Mirrors the compose
+      # `command` so the healthcheck connects with the right credential.
+      REDISCLI_AUTH: ${REDIS_PASSWORD:-devpassword}
+    ports:
+      # Bind to loopback only so the password (default `devpassword`) isn't
+      # exposed to the host's LAN. polaris-api reaches redis via the internal
+      # docker network anyway.
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  polaris-api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    image: polaris-api:dev
+    container_name: polaris-api
+    # Load all secrets + config from root .env; explicit `environment` keys
+    # below override only the values that must differ inside Docker (e.g.
+    # REDIS_URL uses the container name, not localhost).
+    env_file:
+      - ../.env
+    environment:
+      ENVIRONMENT: local
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Override REDIS_URL so it routes to the redis container, not localhost.
+      REDIS_URL: redis://:${REDIS_PASSWORD:-devpassword}@redis:6379
+      # Portal invite SMTP — route to MailHog container (Docker-internal hostname).
+      # Overrides any .env values which use localhost (invalid inside Docker).
+      PORTAL_INVITE_SMTP_HOST: polaris-mailhog
+      PORTAL_INVITE_SMTP_PORT: "1025"
+      PORTAL_INVITE_SMTP_FROM: "Polaris <noreply@polaris.local>"
+      PORTAL_BASE_URL: http://portal.localhost
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/v1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  polaris-portal:
+    build:
+      context: ..
+      dockerfile: apps/portal/Dockerfile
+    image: polaris-portal:dev
+    container_name: polaris-portal
+    # Load secrets + config from root .env (mirrors polaris-admin pattern).
+    # NEXTAUTH_SECRET and PORTAL_NEXTAUTH_SECRET come from env_file so that
+    # shell-env empty values don't shadow the .env values.
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      # In base dev mode the portal is accessed directly at localhost:3000.
+      NEXTAUTH_URL: http://localhost:3000
+      # SSR self-fetch (CSRF token). localhost:3000 gets ECONNREFUSED from
+      # inside the container; the service name resolves via Docker DNS.
+      NEXTAUTH_URL_INTERNAL: http://polaris-portal:3000
+      # Docker-internal API route for server-side fetches.
+      POLARIS_API_INTERNAL_URL: http://polaris-api:8000
+      # MailHog trap for magic-link emails in local dev.
+      EMAIL_SERVER_HOST: polaris-mailhog
+      EMAIL_SERVER_PORT: "1025"
+      EMAIL_SERVER_USER: ""
+      EMAIL_SERVER_PASSWORD: ""
+      EMAIL_FROM: "Polaris <no-reply@getpolaris.my>"
+    ports:
+      - "3000:3000"
+    depends_on:
+      polaris-api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  polaris-admin:
+    build:
+      context: ..
+      dockerfile: apps/admin/Dockerfile
+    image: polaris-admin:dev
+    container_name: polaris-admin
+    # Load all secrets + config from root .env (same as polaris-api).
+    # The explicit environment: keys below are Docker-internal overrides
+    # (service names, ports) that must differ from the .env defaults.
+    # ADMIN_NEXTAUTH_SECRET and POLARIS_DB_URL_SERVICE come from env_file
+    # so that shell-env empty values don't shadow the .env values.
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      # Docker-internal service routes:
+      POLARIS_API_BASE_URL: http://polaris-api:8000
+      POLARIS_API_INTERNAL_URL: http://polaris-api:8000
+      # SSR self-fetch (CSRF token). localhost:3001 gets ECONNREFUSED from
+      # inside the container; the service name resolves correctly via Docker DNS.
+      NEXTAUTH_URL_INTERNAL: http://polaris-admin:3001
+      # Explicitly stomp NEXTAUTH_URL here. The root .env sets
+      # NEXTAUTH_URL=http://localhost:3000 (portal); without this override
+      # the admin container inherits the portal URL via env_file and magic-link
+      # callbacks redirect to portal.localhost → Verification error.
+      NEXTAUTH_URL: ${ADMIN_NEXTAUTH_URL:-http://localhost:3001}
+      # MailHog: use the container name (orphan, so the compose service-name
+      # alias `mailhog` is not registered on polaris-net — only the container
+      # name `polaris-mailhog` resolves via Docker DNS).
+      ADMIN_EMAIL_SERVER_HOST: polaris-mailhog
+      ADMIN_EMAIL_SERVER_PORT: "1025"
+      # Raise the magic-link rate cap for local dev / E2E runs so repeated
+      # test runs within the same hour don't hit the 3/hour default.
+      ADMIN_MAGIC_LINK_REQUESTS_PER_HOUR: "100"
+    ports:
+      - "3001:3001"
+    depends_on:
+      polaris-api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3001').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # MailHog — SMTP trap for local E2E + magic-link debug.
+  # Web UI: http://localhost:8025  SMTP: localhost:1025
+  # Only started when the `e2e` profile is active:
+  #   docker compose --profile e2e up mailhog
+  # In CI the pr-check workflow starts it unconditionally for the E2E job.
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: polaris-mailhog
+    profiles: ["e2e"]
+    ports:
+      - "1025:1025"
+      - "127.0.0.1:8025:8025"
+    restart: unless-stopped
+
+networks:
+  default:
+    name: polaris-net

@@ -1,0 +1,143 @@
+name: e2e
+
+# Heavy full-stack Playwright E2E suite (apps/portal/e2e + apps/admin/e2e).
+# Deliberately NOT run on every PR (it boots the whole Docker stack + hits the
+# Supabase Cloud DB). Triggers:
+#   - workflow_dispatch: on demand from the Actions tab.
+#   - schedule: nightly at 18:05 UTC (~02:05 MYT), off working hours (MYT).
+#
+# Required repository secret:
+#   E2E_DOTENV  — the full contents of a working root `.env` (Supabase service
+#                 URL, POLARIS_KMS_KEY, JWT_SECRET/JWT_ISSUER, NEXTAUTH secrets,
+#                 META_APP_SECRET, CHATWOOT_WEBHOOK_HMAC_SECRET,
+#                 EA_WEBHOOK_HMAC_SECRET, BOOKING_BINDING_SECRET,
+#                 POLARIS_E2E_INTERNAL_SECRET, POLARIS_META_MOCK_ENABLED=true,
+#                 MAILHOG_API_URL, PLAYWRIGHT_PORTAL_BASE_URL=http://localhost:3000,
+#                 PLAYWRIGHT_ADMIN_BASE_URL=http://localhost:3001, ...).
+#                 Mirrors the local `.env` used for `make dev`.
+#
+# NOTE: the Chatwoot + Easy!Appointments forks are separate repos and are NOT
+# booted here. Specs that need them (some journeys/cross-path) self-skip via
+# `test.skip(() => !secretsPresent())` / `test.fixme`, so their absence does not
+# fail the run. To exercise those, run the suite locally against the full
+# 3-stack (`start-all.sh`).
+
+on:
+  workflow_dispatch:
+  # Nightly schedule is disabled — the suite seeds fixture tenants into the
+  # shared DB, so unattended runs leave e2e-* tenants behind between runs.
+  # Run on demand from the Actions tab instead. Re-enable once the system is
+  # stable AND e2e points at a non-prod DB (see E2E_DOTENV note above).
+  # schedule:
+  #   - cron: "5 18 * * *"
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "9.12.0"
+
+      - name: Materialize .env from secret
+        run: |
+          if [ -z "${{ secrets.E2E_DOTENV }}" ]; then
+            echo "::error::E2E_DOTENV secret is not set — cannot run the E2E stack."
+            exit 1
+          fi
+          printf '%s' "${{ secrets.E2E_DOTENV }}" > .env
+          echo ".env written ($(wc -l < .env) lines)"
+
+      - name: Install Python deps
+        run: uv sync --all-packages --all-extras
+
+      - name: Install Node deps
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @polaris/portal exec playwright install --with-deps chromium
+
+      - name: Apply DB migrations
+        run: |
+          set -a; . ./.env; set +a
+          uv run python packages/db-migrations/apply.py
+
+      - name: Bring up Polaris stack (api + portal + admin + redis + mailhog + caddy)
+        run: |
+          docker compose -f infra/docker-compose.yml up -d --build \
+            polaris-api polaris-portal polaris-admin redis polaris-mailhog
+          # Wait for the API health endpoint.
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8000/v1/health >/dev/null 2>&1; then
+              echo "api healthy after ~$((i*5))s"; break
+            fi
+            sleep 5
+          done
+          curl -fsS http://localhost:8000/v1/health
+
+      - name: Seed E2E fixtures
+        run: |
+          set -a; . ./.env; set +a
+          uv run python apps/api/scripts/seed_e2e_multitenant.py --reset
+          uv run python apps/api/scripts/seed_e2e_ea_providers.py --reset || \
+            echo "::warning::EA provider seed skipped (EA fork not running in CI)"
+          uv run python apps/api/scripts/seed_e2e_admin.py
+          uv run python apps/api/scripts/seed_e2e_portal.py
+
+      - name: Portal E2E (Playwright)
+        env:
+          CI: "true"
+        run: pnpm --filter @polaris/portal exec playwright test --reporter=html,junit,github
+        continue-on-error: true
+
+      - name: Admin E2E (Playwright)
+        env:
+          CI: "true"
+        run: pnpm --filter @polaris/admin exec playwright test --reporter=html,junit,github
+        continue-on-error: true
+
+      - name: Upload Playwright reports + traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-reports
+          path: |
+            apps/portal/playwright-report/**
+            apps/admin/playwright-report/**
+            apps/portal/test-results/**
+            apps/admin/test-results/**
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Tear down E2E fixture tenants (clean the DB)
+        if: always()
+        run: |
+          set -a; . ./.env; set +a
+          uv run python apps/api/scripts/seed_e2e_multitenant.py --teardown || \
+            echo "::warning::E2E fixture teardown failed — check for leftover e2e-* tenants"
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose -f infra/docker-compose.yml down -v || true

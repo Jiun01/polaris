@@ -1,0 +1,6 @@
+[submodule "forks/easyappointments"]
+	path = forks/easyappointments
+	url = ../polaris-ea-fork
+[submodule "forks/chatwoot"]
+	path = forks/chatwoot
+	url = ../polaris-chatwoot

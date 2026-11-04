@@ -1,0 +1,127 @@
+name: pr-check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: pr-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-typecheck-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: polaris
+          POSTGRES_PASSWORD: polaris
+          POSTGRES_DB: polaris
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U polaris"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+    env:
+      POLARIS_DATABASE_URL: postgres://polaris:polaris@localhost:5432/polaris
+      POLARIS_TEST_DATABASE_URL: postgres://polaris:polaris@localhost:5432/polaris
+      REDIS_URL: redis://localhost:6379/0
+      # Test-suite settings consumed via the lru_cached get_settings(). They
+      # MUST be present from process start: test modules os.environ.setdefault
+      # these same values, but in a full run get_settings() can be cached with
+      # empty values before a module's setdefault runs (import ordering),
+      # making admin-auth tests 500 with "jwt_secret unset". Setting them in the
+      # job env removes the ordering dependency. Values mirror the test
+      # constants exactly so JWTs the tests sign verify against settings.
+      JWT_SECRET: pytest-secret-32-bytes-padded-xxxxxxxxxx
+      JWT_ISSUER: polaris-portal
+      GRAFANA_CLOUD_MIMIR_URL: https://mimir.example.com
+      GRAFANA_CLOUD_MIMIR_TOKEN: pytest-mimir-token
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "9.12.0"
+
+      # `--all-packages` installs every workspace member's `dependencies`
+      # (asyncpg, fastapi, pynacl, ...). Without it, only root deps install
+      # and `uv run python <member-script>` raises ModuleNotFoundError.
+      # `--all-extras` adds each member's `[project.optional-dependencies]`
+      # dev group (pytest, mypy, ruff).
+      - name: Install Python deps
+        run: uv sync --all-packages --all-extras
+
+      - name: Install Node deps
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Lint (prettier)
+        run: pnpm run format
+
+      # Point mypy at specific source dirs (not `apps` / `packages`) so it
+      # doesn't see the same file twice via both filesystem walk and the
+      # venv-installed package path. Strict mode + duplicate-module check is
+      # extremely picky about this in workspace setups.
+      - name: Typecheck (mypy)
+        run: |
+          uv run mypy \
+            apps/api/polaris_api \
+            apps/ingestion-worker/polaris_ingest \
+            packages/shared-types/python/polaris_shared_types \
+            packages/db-migrations/apply.py
+
+      - name: Typecheck (tsc)
+        run: pnpm -r run typecheck
+
+      - name: Shared-types drift check (Pydantic -> schema.json)
+        run: uv run python packages/shared-types/scripts/export.py --check
+
+      - name: Apply DB migrations
+        run: uv run python packages/db-migrations/apply.py
+
+      - name: Test (pytest)
+        run: uv run pytest --cov=apps --cov=packages --cov-report=xml --cov-report=term
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: ignore

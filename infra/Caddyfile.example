@@ -1,0 +1,31 @@
+# Polaris v2 — example Caddyfile (NOT used in Phase 0).
+# Reference template for Phase 5+ production reverse-proxy.
+# In Phase 0, each app exposes its port directly via docker-compose.
+
+api.polaris.example {
+  reverse_proxy polaris-api:8000
+}
+
+portal.polaris.example {
+  reverse_proxy polaris-portal:3000
+}
+
+admin.polaris.example {
+  # Outer auth gate per ADR-030 Amendment 2026-05-20 (Phase 9 PR-2).
+  # The admin app uses magic-link only (no MFA) inside; Caddy basic-auth
+  # in front is the first defence layer. The hash lives in the host env
+  # as CADDY_ADMIN_BASIC_AUTH_HASH — never committed. Generate via:
+  #   caddy hash-password --plaintext '<pwd>' --algorithm bcrypt
+  # See infra/caddy/admin-basic-auth-howto.md for rotation + revocation.
+  basicauth {
+    admin {$CADDY_ADMIN_BASIC_AUTH_HASH}
+  }
+  reverse_proxy polaris-admin:3001 {
+    # Shared-secret header consumed by the IP-bind layer (security
+    # review Finding 1 — defence-in-depth against header spoofing if
+    # Next is ever reachable bypassing Caddy). Caddy injects this on
+    # every upstream call; a direct-to-process attacker can't forge it.
+    # The value must match ADMIN_CADDY_PROXY_TOKEN in apps/admin/.env.
+    header_up X-Polaris-Caddy-Token {$ADMIN_CADDY_PROXY_TOKEN}
+  }
+}

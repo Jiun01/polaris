@@ -1,0 +1,36 @@
+{"q": "is there a free trial?", "expect_any": ["free", "trial"], "lang": "en"}
+{"q": "how much does Polaris cost?", "expect_any": ["price", "rm", "tier", "month"], "lang": "en"}
+{"q": "what are the pricing tiers?", "expect_any": ["starter", "pro", "ultra", "enterprise"], "lang": "en"}
+{"q": "what is the cheapest plan?", "expect_any": ["starter", "rm99", "rm699"], "lang": "en"}
+{"q": "do you have an enterprise plan?", "expect_any": ["enterprise", "custom", "sales"], "lang": "en"}
+{"q": "what is included in the monthly quota?", "expect_any": ["quota", "reply", "message", "per-reply"], "lang": "en"}
+{"q": "which channels does Polaris support?", "expect_any": ["whatsapp", "instagram", "messenger", "channel"], "lang": "en"}
+{"q": "can I connect WhatsApp?", "expect_any": ["whatsapp", "cloud api", "phone_number_id", "token"], "lang": "en"}
+{"q": "how do I connect Instagram and Facebook?", "expect_any": ["instagram", "messenger", "facebook login", "oauth"], "lang": "en"}
+{"q": "does the bot support multiple languages?", "expect_any": ["english", "bahasa", "chinese", "language", "auto-detect"], "lang": "en"}
+{"q": "what is RAG and how does the bot answer from my content?", "expect_any": ["rag", "retrieval", "embedding", "chunk", "knowledge"], "lang": "en"}
+{"q": "how do I upload my knowledge base?", "expect_any": ["upload", "pdf", "docx", "ingestion", "knowledge"], "lang": "en"}
+{"q": "what file types can I upload?", "expect_any": ["pdf", "docx", "html", "markdown"], "lang": "en"}
+{"q": "how does hybrid search work?", "expect_any": ["hybrid", "bm25", "vector", "rerank", "reciprocal rank fusion"], "lang": "en"}
+{"q": "what is the flow builder?", "expect_any": ["flow builder", "node", "canvas", "multi-step", "flow"], "lang": "en"}
+{"q": "can the bot hand off to a human agent?", "expect_any": ["handoff", "human", "agent", "chatwoot"], "lang": "en"}
+{"q": "how do bookings work?", "expect_any": ["booking", "appointment", "calendar", "availability", "easy!appointments"], "lang": "en"}
+{"q": "can customers book an appointment through the bot?", "expect_any": ["booking", "appointment", "date", "slot", "calendar"], "lang": "en"}
+{"q": "what are broadcasts?", "expect_any": ["broadcast", "template", "audience", "opted-in"], "lang": "en"}
+{"q": "is Polaris PDPA compliant?", "expect_any": ["pdpa", "compliant", "dpa", "processor", "retention"], "lang": "en"}
+{"q": "how is my data isolated from other tenants?", "expect_any": ["row-level security", "rls", "tenant", "isolation", "guc"], "lang": "en"}
+{"q": "how are my API tokens and secrets stored?", "expect_any": ["encrypt", "secret", "libsodium", "xchacha20", "at rest"], "lang": "en"}
+{"q": "how long do you retain conversation data?", "expect_any": ["retention", "90 days", "purge", "sweeper", "window"], "lang": "en"}
+{"q": "how do I get started / onboard?", "expect_any": ["onboard", "sign up", "magic link", "portal", "30 minutes"], "lang": "en"}
+{"q": "how do I talk to a human about Polaris?", "expect_any": ["whatsapp", "email", "contact", "sales", "human"], "lang": "en"}
+{"q": "is Cohere rerank included in my plan?", "expect_any": ["cohere", "rerank", "ultra", "enterprise", "relevance"], "lang": "en"}
+{"q": "berapa harga Polaris?", "expect_any": ["price", "rm", "tier", "month", "harga"], "lang": "ms"}
+{"q": "ada free trial tak?", "expect_any": ["free", "trial", "percuma"], "lang": "ms"}
+{"q": "boleh sambung WhatsApp?", "expect_any": ["whatsapp", "cloud api", "token", "channel"], "lang": "ms"}
+{"q": "macam mana nak buat booking?", "expect_any": ["booking", "appointment", "calendar", "availability"], "lang": "ms"}
+{"q": "Polaris ada pdpa compliant?", "expect_any": ["pdpa", "compliant", "data", "retention"], "lang": "ms"}
+{"q": "Polaris 多少钱?", "expect_any": ["price", "rm", "tier", "month"], "lang": "zh"}
+{"q": "有免费试用吗?", "expect_any": ["free", "trial"], "lang": "zh"}
+{"q": "支持哪些渠道?", "expect_any": ["whatsapp", "instagram", "messenger", "channel"], "lang": "zh"}
+{"q": "怎么预约?", "expect_any": ["booking", "appointment", "calendar", "availability"], "lang": "zh"}
+{"q": "我的数据安全吗?", "expect_any": ["row-level security", "rls", "encrypt", "isolation", "secret"], "lang": "zh"}

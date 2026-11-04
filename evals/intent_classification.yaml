@@ -1,0 +1,91 @@
+version: 1
+suite: intent_classification
+threshold: 0.9 # plan decision-lock 4; ADR-058 stub-only until 2 consecutive runs hold this
+cases:
+  # ---- simple: short FAQ, single fact lookup ----
+  - id: simple-001
+    input: "what time do you open?"
+    expected: simple
+    language: en
+  - id: simple-002
+    input: "berapa harga produk ini?"
+    expected: simple
+    language: ms
+  - id: simple-003
+    input: "你们几点开门？"
+    expected: simple
+    language: zh-cn
+  - id: simple-004
+    input: "do you have free delivery"
+    expected: simple
+    language: en
+  - id: simple-005
+    input: "alamat kedai di mana"
+    expected: simple
+    language: ms
+
+  # ---- medium: multi-turn FAQ, comparison, light recommendation ----
+  - id: medium-001
+    input: "what's the difference between plan A and plan B?"
+    expected: medium
+    language: en
+  - id: medium-002
+    input: "I'm looking for something under RM200 that's good for my mother — any suggestions?"
+    expected: medium
+    language: en
+  - id: medium-003
+    input: "saya nak compare two products yang berbeza, plan starter dengan pro"
+    expected: medium
+    language: ms
+  - id: medium-004
+    input: "the food was a bit cold when it arrived, what can you do?"
+    expected: medium
+    language: en
+  - id: medium-005
+    input: "我想知道这两个套餐有什么不一样"
+    expected: medium
+    language: zh-cn
+
+  # ---- hard: complex multi-criteria, edge-case policy, step-by-step ----
+  - id: hard-001
+    input: "I bought this two weeks ago and it broke, but I lost the receipt — what's your return policy in this case?"
+    expected: hard
+    language: en
+  - id: hard-002
+    input: "Can you walk me through the steps to migrate my account from the old plan to the new enterprise tier without losing my data?"
+    expected: hard
+    language: en
+  - id: hard-003
+    input: "I need something that works for a team of 50 people, integrates with our existing CRM, and supports both English and Chinese — what would you recommend and why?"
+    expected: hard
+    language: en
+  - id: hard-004
+    input: "saya ada situasi yang kompleks — produk yang saya beli tak sesuai untuk keperluan saya, dan saya dah cuba pelbagai cara nak settle, tolong terangkan apa pilihan saya"
+    expected: hard
+    language: ms
+  - id: hard-005
+    input: "请详细解释一下你们的退换货流程，包括如果商品已经使用过但有质量问题该怎么办，以及具体需要哪些证明文件"
+    expected: hard
+    language: zh-cn
+
+  # ---- handoff: explicit human request, hostile, out-of-scope ----
+  - id: handoff-001
+    input: "get me a manager now"
+    expected: handoff
+    language: en
+  - id: handoff-002
+    input: "can I speak to a real human please"
+    expected: handoff
+    language: en
+  - id: handoff-003
+    input: "saya nak cakap dengan agent sebenar bukan bot"
+    expected: handoff
+    language: ms
+  - id: handoff-004
+    input: "your service is terrible, I want to file a formal complaint with someone"
+    expected: handoff
+    language: en
+  - id: handoff-005
+    input: "I need legal advice about this — should I sue your company?"
+    expected: handoff
+    language: en

@@ -1,0 +1,120 @@
+# Polaris v2 — local VPS-mimic overlay
+#
+# Extends infra/docker-compose.yml with a Caddy reverse-proxy service that
+# mirrors the production topology. Run with both files:
+#
+#   docker compose -f infra/docker-compose.yml -f infra/docker-compose.local-vps.yml up
+#
+# Or add a Makefile target:  make dev-vps
+#
+# What this adds / overrides:
+#   caddy          — Caddy reverse-proxy on port 80, routing api/portal/admin subdomains.
+#   polaris-admin  — Overrides ADMIN_NEXTAUTH_URL + injects ADMIN_CADDY_PROXY_TOKEN so
+#                    magic-link callbacks use http://admin.localhost (not :3001) and the
+#                    IP-bind header check is fully enforced.
+#   polaris-portal — Overrides NEXTAUTH_URL so magic-link callbacks use
+#                    http://portal.localhost (not :3000).
+#
+# Required env vars (add to .env; see Caddyfile.local for details):
+#   CADDY_ADMIN_BASIC_AUTH_HASH  — bcrypt hash from `caddy hash-password`
+#   ADMIN_CADDY_PROXY_TOKEN      — shared secret injected by Caddy, verified by admin app
+
+name: polaris
+
+services:
+  caddy:
+    image: caddy:alpine
+    container_name: polaris-caddy
+    ports:
+      - "80:80"
+    volumes:
+      # Local Caddyfile for *.localhost routing (HTTP only, no cert trust needed).
+      - ./Caddyfile.local:/etc/caddy/Caddyfile:ro
+      # Maintenance pages served by Caddy when an upstream is down.
+      - ./caddy/maintenance:/etc/caddy/maintenance:ro
+      # Persist Caddy's internal state (OCSP, cert cache) across restarts.
+      - caddy_data:/data
+      - caddy_config:/config
+    # Load from root .env (compose project dir is infra/, so path is ../.env).
+    # Caddy only reads the two vars it references in the Caddyfile.
+    env_file:
+      - ../.env
+    depends_on:
+      polaris-api:
+        condition: service_healthy
+      polaris-portal:
+        condition: service_started
+      polaris-admin:
+        condition: service_started
+    healthcheck:
+      # Use explicit Host header so Caddy routes the health-check request
+      # to polaris-api:8000 via virtual-host matching — api.localhost doesn't
+      # resolve via DNS inside the container (that's a browser behaviour).
+      test:
+        [
+          "CMD",
+          "wget",
+          "-qO-",
+          "--header=Host: api.localhost",
+          "http://localhost:80/v1/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Override admin NextAuth URL so magic-link callbacks go through Caddy
+  # (http://admin.localhost) instead of direct-port (http://localhost:3001).
+  # env_file reloads root .env so ADMIN_CADDY_PROXY_TOKEN is available;
+  # the explicit environment key overrides ADMIN_NEXTAUTH_URL on top of it.
+  polaris-admin:
+    # env_file loads ADMIN_NEXTAUTH_SECRET without shell-var shadowing.
+    env_file:
+      - ../.env
+    environment:
+      ADMIN_NEXTAUTH_URL: http://admin.localhost
+      # NEXTAUTH_URL_INTERNAL: admin.localhost doesn't resolve inside the
+      # container; point at the service name to fix CSRF self-fetch.
+      NEXTAUTH_URL_INTERNAL: http://polaris-admin:3001
+      # Wire SMTP → MailHog so magic-link emails are trapped locally.
+      ADMIN_EMAIL_SERVER_HOST: polaris-mailhog
+      ADMIN_EMAIL_SERVER_PORT: "1025"
+      ADMIN_EMAIL_SERVER_USER: ""
+      ADMIN_EMAIL_SERVER_PASSWORD: ""
+      ADMIN_EMAIL_FROM: "Polaris Admin <no-reply@getpolaris.my>"
+
+  # Override portal NextAuth URL so magic-link callbacks go through Caddy.
+  # Also wire SMTP → MailHog and inject NEXTAUTH_SECRET (mirrors admin pattern).
+  polaris-portal:
+    # env_file loads NEXTAUTH_SECRET (and other portal vars) from root .env
+    # without going through shell interpolation — avoids the empty-shell-var
+    # shadow problem that affects ${VAR} substitution in environment: blocks.
+    env_file:
+      - ../.env
+    environment:
+      NEXTAUTH_URL: http://portal.localhost
+      # NEXTAUTH_URL_INTERNAL: portal.localhost doesn't resolve inside the
+      # container; point at the service name to fix CSRF self-fetch.
+      NEXTAUTH_URL_INTERNAL: http://polaris-portal:3000
+      NODE_ENV: production
+      PORT: "3000"
+      EMAIL_SERVER_HOST: polaris-mailhog
+      EMAIL_SERVER_PORT: "1025"
+      EMAIL_SERVER_USER: ""
+      EMAIL_SERVER_PASSWORD: ""
+      EMAIL_FROM: "Polaris <no-reply@getpolaris.my>"
+
+  # MailHog — SMTP trap for E2E magic-link testing.
+  # Web UI: http://localhost:8025  SMTP (in-container): polaris-mailhog:1025
+  # Always started in VPS-mimic mode (no profile gate needed here).
+  polaris-mailhog:
+    image: mailhog/mailhog:latest
+    container_name: polaris-mailhog
+    ports:
+      - "1025:1025"
+      - "127.0.0.1:8025:8025"
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

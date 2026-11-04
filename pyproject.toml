@@ -1,0 +1,198 @@
+[project]
+name = "polaris"
+version = "0.0.0"
+description = "Polaris monorepo root (uv workspace)"
+requires-python = ">=3.12,<3.13"
+# Root has no runtime deps; members declare their own.
+dependencies = []
+
+[tool.uv.workspace]
+members = [
+  "apps/api",
+  "apps/ingestion-worker",
+  "packages/shared-types/python",
+  "packages/db-migrations",
+]
+
+# PEP 735 dependency groups (uv 0.5+). Replaces the deprecated
+# `[tool.uv] dev-dependencies = [...]` block.
+[dependency-groups]
+dev = [
+  "pytest>=8,<9",
+  "pytest-asyncio>=0.24,<0.30",
+  "pytest-cov>=5,<7",
+  "mypy>=2,<3",
+  "ruff>=0.7,<1",
+  # Phase 2 PR-1+: in-memory Redis double for webhook idempotency tests.
+  # fakeredis 2.26+ tracks redis-py 5's asyncio API surface.
+  "fakeredis>=2.26,<3",
+  # Phase 4 eval-harness loader + Phase 5 adversarial sandbox corpus.
+  # PyYAML was a transient install via cohere / litellm; pinning it
+  # explicitly keeps `uv sync` deterministic.
+  "pyyaml>=6,<7",
+  # Phase 5 PR-2: deterministic time-mocking for the expression DSL's
+  # business_hours_now() / now() / date_add() / date_diff() tests +
+  # simulator reproducibility (PR-5).
+  "freezegun>=1.5,<2",
+  # Phase 5 PR-2: IANA tz database. Linux/macOS read /usr/share/zoneinfo
+  # directly, but Windows ships no tz database — `ZoneInfo("Asia/Kuala_Lumpur")`
+  # raises `ZoneInfoNotFoundError` without this. ADR-019 needs tenant-
+  # local-time business-hours resolution, so the DSL ships it as a hard
+  # test-time dep; in prod, Linux containers already have the system tz
+  # files so the runtime cost is zero.
+  "tzdata>=2025.1",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [
+  ".venv",
+  "dist",
+  "build",
+  "node_modules",
+  "packages/shared-types/typescript",
+]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+  "B",   # bugbear
+  "UP",  # pyupgrade
+  "S",   # bandit (security)
+  "ASYNC",
+]
+ignore = [
+  "E501",  # line length handled by formatter
+  "S101",  # assert allowed in tests
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests: asserts + local fixture secrets are fine; E402 covers the
+# common env/sys.path bootstrap-before-import pattern in test modules.
+"**/tests/**" = ["S101", "S105", "S106", "E402"]
+# Build-time SQL renderer that emits migration text — not a runtime
+# query. Inputs are bundled template strings; _sql_literal escapes
+# defensively. S608 doesn't apply here.
+"apps/api/scripts/build_template_seed.py" = ["S608"]
+# E2E seed / provisioning scripts: developer-run utilities against local
+# fixtures, not request-path code. They build SQL/CLI from trusted
+# constants + fixture ids (S608/S603), embed local test tokens (S105),
+# and import after a sys.path/env bootstrap (E402).
+"apps/api/scripts/seed_e2e_*.py" = ["S608", "S603", "S105", "E402"]
+"scripts/setup_e2e_cw_tenant.py" = ["S608", "S603", "S105", "E402"]
+# Root marketing/demo seed scripts (`_*seed*.py`): developer-run utilities that
+# print SQL text from trusted constants + fixture ids (not request-path code);
+# md5 is a non-security dedup hash for demo rows.
+"_*seed*.py" = ["S608", "S324"]
+# conversational.py (Batch E, task E2): facade module for the booking split.
+# BookingReply/BookingReplyKind must be defined BEFORE the 4 extracted
+# sub-modules are imported (they import this module back by reference to
+# reach these names without a hard top-of-file cycle) — see the in-file
+# comment above that import block.
+"apps/api/polaris_api/services/booking/conversational.py" = ["E402"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+explicit_package_bases = true
+namespace_packages = true
+# mypy_path tells mypy "these directories ARE the package roots" — so walking
+# apps/api/polaris_api/config.py resolves as `polaris_api.config`, not as the
+# weird `apps.api.polaris_api.config` that the workspace layout otherwise
+# induces. Required for `mypy apps/api/polaris_api ...` style invocation.
+mypy_path = "apps/api:apps/ingestion-worker:packages/shared-types/python:packages/db-migrations"
+exclude = [
+  "^\\.venv/",
+  "^build/",
+  "^dist/",
+  "^node_modules/",
+  "^packages/shared-types/typescript/",
+  # Each workspace member has its own `tests/__init__.py`; mypy sees all three
+  # as duplicate module `tests`. Pytest handles them via --import-mode=importlib;
+  # mypy doesn't have an equivalent. Test code is strict-checked indirectly via
+  # the source it imports — explicit re-typing in test fixtures adds noise
+  # without catching real bugs.
+  "(^|/)tests/",
+]
+
+[[tool.mypy.overrides]]
+# asyncpg ships type stubs since 0.30 but in some dependency layouts mypy
+# still can't locate the py.typed marker; this guards against that drift.
+# (nacl ships py.typed since 1.6 and no longer needs this override.)
+module = ["asyncpg.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# PyYAML ships no inline types; `types-PyYAML` would add them but it's
+# only needed for the Phase 4 eval-harness module (evals/_runner.py).
+# Skipping the stub install + ignoring here keeps `make typecheck` from
+# requiring a separate dev install just for the eval suite.
+module = ["yaml.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# python-json-logger (pythonjsonlogger) doesn't ship py.typed; strict mode
+# catches the JsonFormatter.__init__ subclass call as no-untyped-call.
+module = ["pythonjsonlogger.*"]
+ignore_missing_imports = true
+disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+# redis-py's asyncio module has partial stubs; from_url() ends up untyped
+# in strict mode. Track upstream — once redis>=6 ships full stubs, drop.
+module = ["redis.*"]
+disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+# APScheduler 3.x does not ship a py.typed marker; stubs are inconsistently
+# available depending on the Python / mypy version.  All imports are inside
+# try/except ImportError guards so the scheduler degrades gracefully when the
+# package is absent.  Centralise the ignore here rather than annotating each
+# of the six scheduled-job files.
+module = ["apscheduler.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# WeasyPrint ships no py.typed marker; pdf_renderer.py wraps the import in a
+# try/except ImportError so PDF generation degrades gracefully in envs that
+# haven't installed the apt deps (arm64 dev machines).
+module = ["weasyprint.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+# Phase 4 PR-5: evals/ and benchmarks/ at the repo root need to be
+# importable so `from evals._runner import ...` and `from benchmarks.run
+# import ...` resolve in test_eval_regression.py. They're not uv
+# workspace members (not installable packages — just scripts + YAML);
+# pythonpath=["."] makes the repo root a sys.path entry for pytest.
+pythonpath = ["."]
+# Session-scoped event loop so session-scoped async fixtures (e.g. the asyncpg
+# dual-pool bootstrap in apps/api/tests/test_tenant_context.py) create
+# resources on the same loop the tests later use. Without this, asyncpg raises
+# `cannot perform operation: another operation is in progress` because a pool
+# created on the session loop is illegal to use from a function-scoped loop.
+# The shared loop costs no test isolation — pytest-asyncio's loop is just an
+# event loop, not shared task state.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["apps/api/tests", "packages/db-migrations/tests", "packages/shared-types/python/tests"]
+# importlib mode avoids the `tests/` package-name collision across workspace
+# members (apps/api/tests, packages/db-migrations/tests, packages/shared-types/python/tests
+# would otherwise all import as `tests.*`).
+addopts = "-ra --strict-markers --strict-config --import-mode=importlib"

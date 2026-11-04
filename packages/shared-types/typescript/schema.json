@@ -1,0 +1,6358 @@
+{
+  "$defs": {
+    "ActiveTenants": {
+      "additionalProperties": false,
+      "description": "Active tenant counts from the messages and tenants tables.\n\nactive_24h is distinct tenants that sent or received a message in the\nlast 24 h; total_provisioned is non-deleted tenants in the tenants table.",
+      "properties": {
+        "active_24h": {
+          "description": "Tenants with message activity in last 24 h.",
+          "minimum": 0,
+          "title": "Active 24H",
+          "type": "integer"
+        },
+        "total_provisioned": {
+          "description": "Non-deleted tenants total.",
+          "minimum": 0,
+          "title": "Total Provisioned",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "active_24h",
+        "total_provisioned"
+      ],
+      "title": "ActiveTenants",
+      "type": "object"
+    },
+    "AlertBand": {
+      "description": "Variable-cost-vs-MRR row coloring on the cost dashboard.\n\nBanded on per-tenant VARIABLE cost (Polaris COGS: Anthropic + Cohere +\nOpenRouter) vs MRR \u2014 the true contribution margin. Fixed platform overhead\n(Supabase/Redis/VPS/etc.) is tracked separately and is NOT in this ratio.",
+      "enum": [
+        "green",
+        "amber",
+        "red"
+      ],
+      "title": "AlertBand",
+      "type": "string"
+    },
+    "ApmErrors": {
+      "additionalProperties": false,
+      "description": "Sentry error count for the last 24 h (optional \u2014 requires sentry_auth_token).\n\nconfigured=False when the token is not set; error_count_24h is NULL in\nthat case.  On a Sentry API error: configured=True, error_count_24h=NULL,\nerror contains the exception message.",
+      "properties": {
+        "configured": {
+          "description": "True when sentry_auth_token is set.",
+          "title": "Configured",
+          "type": "boolean"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "error_count_24h": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sum of received errors over last 24 h from Sentry stats API.",
+          "title": "Error Count 24H"
+        },
+        "sentry_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sentry project browser URL when configured.",
+          "title": "Sentry Url"
+        }
+      },
+      "required": [
+        "configured"
+      ],
+      "title": "ApmErrors",
+      "type": "object"
+    },
+    "Attachment": {
+      "description": "One media item attached to an inbound message.\n\nPhase 4's LLM consumer decides whether to download (Meta-hosted\nmedia URLs have short TTLs and need a server-side fetch with the\nGraph API token; IG and Messenger return permanent URLs in the\nwebhook itself; Chatwoot returns CDN URLs).",
+      "properties": {
+        "kind": {
+          "enum": [
+            "image",
+            "audio",
+            "video",
+            "document",
+            "sticker"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "media_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Media Id"
+        },
+        "mime_type": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mime Type"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Attachment",
+      "type": "object"
+    },
+    "AuditChainVerification": {
+      "additionalProperties": false,
+      "description": "Read shape for ``GET /api/admin/audit/verifications/latest`` and\nlist endpoints.\n\nBroken-row fields (broken_at_id / broken_at_created_at / broken_*_hash)\nare NULL when status='intact'. When status='broken' they identify the\nfirst row where the chain fails \u2014 start the investigation tree there\nper ../docs/internal-ops/RUNBOOK.md \"audit-chain break response\".",
+      "properties": {
+        "broken_actual_hash_hex": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hex-encoded BYTEA of the row_hash found on the broken row (what the chain stored).",
+          "title": "Broken Actual Hash Hex"
+        },
+        "broken_at_created_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "RFC3339 UTC of the broken row \u2014 useful for narrowing the investigation window.",
+          "title": "Broken At Created At"
+        },
+        "broken_at_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "audit_logs.id where the chain first broke. NULL when intact.",
+          "title": "Broken At Id"
+        },
+        "broken_prev_hash_hex": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hex-encoded BYTEA (lowercase, no 0x prefix) of the expected prev_hash (recomputed from the prior row). For transport-friendliness \u2014 the raw BYTEA is not JSON-safe.",
+          "title": "Broken Prev Hash Hex"
+        },
+        "checked_at": {
+          "description": "RFC3339 UTC.",
+          "title": "Checked At",
+          "type": "string"
+        },
+        "duration_ms": {
+          "minimum": 0,
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "rows_scanned": {
+          "description": "Total audit_logs rows walked in this run.",
+          "minimum": 0,
+          "title": "Rows Scanned",
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/VerificationStatus"
+        },
+        "triggered_by": {
+          "$ref": "#/$defs/TriggeredBy"
+        },
+        "triggered_by_admin_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set when triggered_by='on_demand'. NULL for scheduled runs.",
+          "title": "Triggered By Admin Id"
+        }
+      },
+      "required": [
+        "id",
+        "checked_at",
+        "status",
+        "rows_scanned",
+        "duration_ms",
+        "triggered_by"
+      ],
+      "title": "AuditChainVerification",
+      "type": "object"
+    },
+    "BillingCycle": {
+      "enum": [
+        "monthly",
+        "annual"
+      ],
+      "title": "BillingCycle",
+      "type": "string"
+    },
+    "BroadcastDTO": {
+      "additionalProperties": false,
+      "description": "GET /api/tenant/broadcasts/{id} response shape.\n\nCounters are read directly off the broadcasts row \u2014 they're\ndenormalised projections of broadcast_recipients.status counts,\nmaintained incrementally by the worker + the wa-status webhook.",
+      "properties": {
+        "audience_filter": {
+          "discriminator": {
+            "mapping": {
+              "all_opted_in": "#/$defs/FilterAllOptedIn",
+              "branch": "#/$defs/FilterBranch",
+              "channel": "#/$defs/FilterChannel",
+              "combined_and": "#/$defs/FilterCombinedAnd",
+              "locale": "#/$defs/FilterLocale",
+              "tags_all": "#/$defs/FilterTagsAll",
+              "tags_any": "#/$defs/FilterTagsAny"
+            },
+            "propertyName": "filter_kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/FilterAllOptedIn"
+            },
+            {
+              "$ref": "#/$defs/FilterTagsAny"
+            },
+            {
+              "$ref": "#/$defs/FilterTagsAll"
+            },
+            {
+              "$ref": "#/$defs/FilterBranch"
+            },
+            {
+              "$ref": "#/$defs/FilterLocale"
+            },
+            {
+              "$ref": "#/$defs/FilterChannel"
+            },
+            {
+              "$ref": "#/$defs/FilterCombinedAnd"
+            }
+          ],
+          "title": "Audience Filter"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "created_by": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Created By"
+        },
+        "delivered_count": {
+          "title": "Delivered Count",
+          "type": "integer"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error"
+        },
+        "failed_count": {
+          "title": "Failed Count",
+          "type": "integer"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Finished At"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "read_count": {
+          "title": "Read Count",
+          "type": "integer"
+        },
+        "scheduled_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Scheduled At"
+        },
+        "sent_count": {
+          "title": "Sent Count",
+          "type": "integer"
+        },
+        "skipped_count": {
+          "title": "Skipped Count",
+          "type": "integer"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Started At"
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "scheduled",
+            "running",
+            "paused",
+            "completed",
+            "cancelled",
+            "errored"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "template_id": {
+          "format": "uuid",
+          "title": "Template Id",
+          "type": "string"
+        },
+        "tenant_channel_id": {
+          "format": "uuid",
+          "title": "Tenant Channel Id",
+          "type": "string"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "total_recipients": {
+          "title": "Total Recipients",
+          "type": "integer"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "variables_template": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Variables Template",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "tenant_id",
+        "tenant_channel_id",
+        "template_id",
+        "name",
+        "status",
+        "audience_filter",
+        "variables_template",
+        "scheduled_at",
+        "started_at",
+        "finished_at",
+        "total_recipients",
+        "sent_count",
+        "delivered_count",
+        "read_count",
+        "failed_count",
+        "skipped_count",
+        "error",
+        "created_by",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "BroadcastDTO",
+      "type": "object"
+    },
+    "BroadcastQueueDepth": {
+      "additionalProperties": false,
+      "description": "Broadcast worker queue snapshot from Phase 6.\n\nCounters drawn from the broadcasts table (status enum\ndraft|scheduled|running|paused|completed|cancelled|errored) plus the\nbroadcast_recipients table (failed_last_hour).",
+      "properties": {
+        "failed_last_hour": {
+          "minimum": 0,
+          "title": "Failed Last Hour",
+          "type": "integer"
+        },
+        "in_flight": {
+          "description": "Broadcasts currently running.",
+          "minimum": 0,
+          "title": "In Flight",
+          "type": "integer"
+        },
+        "pending": {
+          "description": "Broadcasts scheduled, not yet running.",
+          "minimum": 0,
+          "title": "Pending",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "pending",
+        "in_flight",
+        "failed_last_hour"
+      ],
+      "title": "BroadcastQueueDepth",
+      "type": "object"
+    },
+    "BroadcastRecipientDTO": {
+      "additionalProperties": false,
+      "description": "GET /api/tenant/broadcasts/{id}/recipients row.\n\n``skip_reason`` is a free-text column in the DB (see migration 043\nheader for the canonical values); we don't enum-restrict it here so\nthat a forward-compat operational marker (e.g. an admin manually\nsetting a recipient aside with a custom reason) doesn't fail\nvalidation on the read path.",
+      "properties": {
+        "attempt_count": {
+          "title": "Attempt Count",
+          "type": "integer"
+        },
+        "audience_member_id": {
+          "format": "uuid",
+          "title": "Audience Member Id",
+          "type": "string"
+        },
+        "broadcast_id": {
+          "format": "uuid",
+          "title": "Broadcast Id",
+          "type": "string"
+        },
+        "channel": {
+          "title": "Channel",
+          "type": "string"
+        },
+        "channel_user_id": {
+          "title": "Channel User Id",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "delivered_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Delivered At"
+        },
+        "failed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Failed At"
+        },
+        "failure_payload": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Failure Payload"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "read_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Read At"
+        },
+        "sent_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sent At"
+        },
+        "skip_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Skip Reason"
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "skipped",
+            "sent",
+            "delivered",
+            "read",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "variables_resolved": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Variables Resolved",
+          "type": "object"
+        },
+        "wa_message_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Wa Message Id"
+        }
+      },
+      "required": [
+        "id",
+        "broadcast_id",
+        "audience_member_id",
+        "channel",
+        "channel_user_id",
+        "status",
+        "wa_message_id",
+        "variables_resolved",
+        "skip_reason",
+        "attempt_count",
+        "sent_at",
+        "delivered_at",
+        "read_at",
+        "failed_at",
+        "failure_payload",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "BroadcastRecipientDTO",
+      "type": "object"
+    },
+    "CSVImportErrorRow": {
+      "additionalProperties": false,
+      "description": "One error from the importer's per-line error accumulator.",
+      "properties": {
+        "error_code": {
+          "enum": [
+            "INVALID_PHONE",
+            "INVALID_CHANNEL",
+            "INVALID_LOCALE",
+            "CONSENT_REQUIRED_MISSING",
+            "DUPLICATE_IN_FILE",
+            "BRANCH_NOT_FOUND",
+            "MALFORMED_TAGS",
+            "MALFORMED_METADATA_JSON"
+          ],
+          "title": "Error Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "raw": {
+          "additionalProperties": true,
+          "title": "Raw",
+          "type": "object"
+        },
+        "row_number": {
+          "minimum": 0,
+          "title": "Row Number",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "row_number",
+        "raw",
+        "error_code",
+        "message"
+      ],
+      "title": "CSVImportErrorRow",
+      "type": "object"
+    },
+    "CSVImportResult": {
+      "additionalProperties": false,
+      "description": "Aggregate result of a CSV import attempt.\n\n``imported_count`` covers both new inserts and updates to existing\nactive rows (re-import of an already-opted-in contact merges\nlocale + tags). ``skipped_count`` covers rows that were valid but\nno-op'd (e.g. duplicate-in-file, or already-opted-out contacts the\nimporter chose not to re-activate). ``error_rows`` carries the\nper-line accumulator \u2014 every row that didn't apply is here, with\nthe row_number from the source CSV preserved for tenant debugging.",
+      "properties": {
+        "error_rows": {
+          "items": {
+            "$ref": "#/$defs/CSVImportErrorRow"
+          },
+          "title": "Error Rows",
+          "type": "array"
+        },
+        "imported_count": {
+          "minimum": 0,
+          "title": "Imported Count",
+          "type": "integer"
+        },
+        "skipped_count": {
+          "minimum": 0,
+          "title": "Skipped Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "imported_count",
+        "skipped_count"
+      ],
+      "title": "CSVImportResult",
+      "type": "object"
+    },
+    "ChunkingConfig": {
+      "description": "Per-tenant chunk shape \u2014 read by the desktop at run time.\n\nReturned from ``GET /api/admin/tenants/{tenant_id}/chunking-config``.\nService-role JWT only (tenants manage these values via the Phase 8\nportal, NOT this endpoint). Defaults come from ADR-032 Amendment\n(chunk_size=512, overlap=80); per-tenant overrides land in\n``tenants.settings`` JSONB per Q-PHASE3-15.",
+      "properties": {
+        "chunk_overlap": {
+          "maximum": 1024,
+          "minimum": 0,
+          "title": "Chunk Overlap",
+          "type": "integer"
+        },
+        "chunk_size": {
+          "maximum": 4096,
+          "minimum": 64,
+          "title": "Chunk Size",
+          "type": "integer"
+        },
+        "contextual_enrichment_default": {
+          "title": "Contextual Enrichment Default",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "chunk_size",
+        "chunk_overlap",
+        "contextual_enrichment_default"
+      ],
+      "title": "ChunkingConfig",
+      "type": "object"
+    },
+    "CohereOverrideCost": {
+      "additionalProperties": false,
+      "description": "Row of the Cohere-Override subpanel.\n\nLists only tenants where ``tenants.cohere_rerank_enabled IS NOT NULL`` \u2014\nthese are tenants with a per-tenant override of the Ultra+ tier gate\n(ADR-026 Am.5). Operator alert fires when Cohere cost per overridden\ntenant > 5% of their MRR (04 Phase 9 \u00a79 spec).",
+      "properties": {
+        "alert": {
+          "description": "True when pct_of_mrr > 0.05 (i.e. Cohere alone > 5% MRR). Surfaces as an amber row in the subpanel; operator reviews monthly.",
+          "title": "Alert",
+          "type": "boolean"
+        },
+        "cohere_rerank_cost_myr": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Cohere Rerank Cost Myr"
+        },
+        "pct_of_mrr": {
+          "description": "cohere_rerank_cost_myr / tenant_mrr_myr (0\u2013N, not 0\u20131).",
+          "minimum": 0,
+          "title": "Pct Of Mrr",
+          "type": "number"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "tenant_mrr_myr": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Tenant Mrr Myr"
+        }
+      },
+      "required": [
+        "tenant_id",
+        "cohere_rerank_cost_myr",
+        "tenant_mrr_myr",
+        "pct_of_mrr",
+        "alert"
+      ],
+      "title": "CohereOverrideCost",
+      "type": "object"
+    },
+    "ConversationDetail": {
+      "additionalProperties": false,
+      "description": "Detail-pane response: the conversation header + its messages\nordered oldest-first.\n\nPer Q-PHASE8-08 + portal_design_prompt.md \u00a72, the detail surface is\nREAD-ONLY. The \"Reply in Chatwoot\" CTA on the portal page is a\ncross-domain link to ``chat.getpolaris.my`` \u2014 no write surface here.",
+      "properties": {
+        "channel": {
+          "enum": [
+            "whatsapp",
+            "messenger",
+            "demo",
+            "telegram",
+            "instagram_login"
+          ],
+          "title": "Channel",
+          "type": "string"
+        },
+        "channel_user_id": {
+          "title": "Channel User Id",
+          "type": "string"
+        },
+        "chatwoot_conversation_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Chatwoot Conversation Id"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "customer_display_name": {
+          "title": "Customer Display Name",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "last_message_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Message At"
+        },
+        "messages": {
+          "items": {
+            "$ref": "#/$defs/MessageDetail"
+          },
+          "title": "Messages",
+          "type": "array"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "tenant_id",
+        "channel",
+        "channel_user_id",
+        "customer_display_name",
+        "chatwoot_conversation_id",
+        "last_message_at",
+        "created_at"
+      ],
+      "title": "ConversationDetail",
+      "type": "object"
+    },
+    "ConversationListItem": {
+      "additionalProperties": false,
+      "description": "One row in the Conversations table.\n\n``customer_display_name`` is pulled from ``conversations.metadata->>\n'display_name'`` when present (the pipeline writes it from the\ninbound webhook payload); when absent we fall back to a redacted\nform of ``channel_user_id`` so the portal still renders a stable\nidentifier.\n\n``last_intent`` reflects the most recent message's intent and helps\nthe operator spot conversations that ended in handoff or booking.\n\n``message_count`` is a per-conversation aggregate; the index on\n``messages(tenant_id, conversation_id, created_at)`` makes the\nCOUNT(*) acceptable at portal page sizes (\u2264 50 rows per page).",
+      "properties": {
+        "channel": {
+          "enum": [
+            "whatsapp",
+            "messenger",
+            "demo",
+            "telegram",
+            "instagram_login"
+          ],
+          "title": "Channel",
+          "type": "string"
+        },
+        "channel_user_id": {
+          "title": "Channel User Id",
+          "type": "string"
+        },
+        "chatwoot_conversation_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Chatwoot Conversation Id"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "customer_display_name": {
+          "title": "Customer Display Name",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "last_intent": {
+          "anyOf": [
+            {
+              "enum": [
+                "greeting",
+                "faq",
+                "booking",
+                "handoff",
+                "promo",
+                "other"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Intent"
+        },
+        "last_message_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Message At"
+        },
+        "message_count": {
+          "minimum": 0,
+          "title": "Message Count",
+          "type": "integer"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "tenant_id",
+        "channel",
+        "channel_user_id",
+        "customer_display_name",
+        "last_message_at",
+        "last_intent",
+        "message_count",
+        "chatwoot_conversation_id",
+        "created_at"
+      ],
+      "title": "ConversationListItem",
+      "type": "object"
+    },
+    "ConversationListResponse": {
+      "additionalProperties": false,
+      "description": "Cursor-paginated list. Mirrors the notification feed shape so the\nportal table primitive can be reused without divergence.\n\n``next_cursor`` is opaque ``<rfc3339>|<uuid>`` \u2014 clients pass it back\nverbatim. NULL when the page is the last one.",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/ConversationListItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Cursor"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "title": "ConversationListResponse",
+      "type": "object"
+    },
+    "CreateBroadcastRequest": {
+      "additionalProperties": false,
+      "description": "POST /api/tenant/broadcasts body.\n\n``scheduled_at=None`` => send immediately (the service layer sets\n``scheduled_at = now()`` at materialisation time). Future scheduling\nrequires a UTC timestamp; the worker drains based on\n``ZRANGEBYSCORE broadcast:queue:{tenant_id} -inf <now>``.",
+      "properties": {
+        "audience_filter": {
+          "discriminator": {
+            "mapping": {
+              "all_opted_in": "#/$defs/FilterAllOptedIn",
+              "branch": "#/$defs/FilterBranch",
+              "channel": "#/$defs/FilterChannel",
+              "combined_and": "#/$defs/FilterCombinedAnd",
+              "locale": "#/$defs/FilterLocale",
+              "tags_all": "#/$defs/FilterTagsAll",
+              "tags_any": "#/$defs/FilterTagsAny"
+            },
+            "propertyName": "filter_kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/FilterAllOptedIn"
+            },
+            {
+              "$ref": "#/$defs/FilterTagsAny"
+            },
+            {
+              "$ref": "#/$defs/FilterTagsAll"
+            },
+            {
+              "$ref": "#/$defs/FilterBranch"
+            },
+            {
+              "$ref": "#/$defs/FilterLocale"
+            },
+            {
+              "$ref": "#/$defs/FilterChannel"
+            },
+            {
+              "$ref": "#/$defs/FilterCombinedAnd"
+            }
+          ],
+          "title": "Audience Filter"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "scheduled_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scheduled At"
+        },
+        "template_id": {
+          "format": "uuid",
+          "title": "Template Id",
+          "type": "string"
+        },
+        "tenant_channel_id": {
+          "format": "uuid",
+          "title": "Tenant Channel Id",
+          "type": "string"
+        },
+        "variables_template": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Variables Template",
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "tenant_channel_id",
+        "template_id",
+        "audience_filter"
+      ],
+      "title": "CreateBroadcastRequest",
+      "type": "object"
+    },
+    "DashboardQuotaSummary": {
+      "additionalProperties": false,
+      "description": "Quota dials block.\n\nSourced from tenant_quotas (locked 16 columns per 05 \u00a74.2) + period\ncounters maintained by Phase 4 (bot_replies), Phase 3 (knowledge),\nPhase 6 (broadcasts), Phase 7 (bookings).",
+      "properties": {
+        "bookings_made_this_period": {
+          "minimum": 0,
+          "title": "Bookings Made This Period",
+          "type": "integer"
+        },
+        "bot_replies_cap": {
+          "minimum": 0,
+          "title": "Bot Replies Cap",
+          "type": "integer"
+        },
+        "bot_replies_used": {
+          "minimum": 0,
+          "title": "Bot Replies Used",
+          "type": "integer"
+        },
+        "broadcasts_sent_this_period": {
+          "minimum": 0,
+          "title": "Broadcasts Sent This Period",
+          "type": "integer"
+        },
+        "knowledge_chunks_cap_mb": {
+          "minimum": 0,
+          "title": "Knowledge Chunks Cap Mb",
+          "type": "number"
+        },
+        "knowledge_chunks_used_mb": {
+          "minimum": 0,
+          "title": "Knowledge Chunks Used Mb",
+          "type": "number"
+        }
+      },
+      "required": [
+        "bot_replies_used",
+        "bot_replies_cap",
+        "knowledge_chunks_used_mb",
+        "knowledge_chunks_cap_mb",
+        "broadcasts_sent_this_period",
+        "bookings_made_this_period"
+      ],
+      "title": "DashboardQuotaSummary",
+      "type": "object"
+    },
+    "DashboardRecentConversation": {
+      "additionalProperties": false,
+      "description": "One row in the 5-row recent-conversations preview.\n\nSourced from conversations + last messages.intent_classified value.\nRead-only viewer; replies live in Chatwoot (per portal_design_prompt.md \u00a72).",
+      "properties": {
+        "channel": {
+          "enum": [
+            "whatsapp",
+            "messenger",
+            "demo",
+            "telegram",
+            "instagram_login"
+          ],
+          "title": "Channel",
+          "type": "string"
+        },
+        "conversation_id": {
+          "format": "uuid",
+          "title": "Conversation Id",
+          "type": "string"
+        },
+        "customer_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Customer Name"
+        },
+        "intent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Last classified intent tag (e.g. 'booking', 'support', 'lead').",
+          "title": "Intent"
+        },
+        "last_message_at": {
+          "description": "RFC3339 UTC.",
+          "title": "Last Message At",
+          "type": "string"
+        },
+        "message_count": {
+          "minimum": 0,
+          "title": "Message Count",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "open",
+            "resolved",
+            "pending",
+            "snoozed"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "conversation_id",
+        "channel",
+        "customer_name",
+        "last_message_at",
+        "message_count",
+        "status"
+      ],
+      "title": "DashboardRecentConversation",
+      "type": "object"
+    },
+    "DashboardSummary": {
+      "additionalProperties": false,
+      "description": "Full envelope for the Dashboard screen.\n\nSingle-round-trip per 04i \u00a76.1: avoids a 6-call waterfall in the\ninitial paint. p95 budget \u2264 400 ms server-side.",
+      "properties": {
+        "active_broadcasts_count": {
+          "description": "Count of broadcasts in scheduled|sending status.",
+          "minimum": 0,
+          "title": "Active Broadcasts Count",
+          "type": "integer"
+        },
+        "active_promotions_count": {
+          "description": "Count of tenant_promotions where is_active=true and now() within valid_from..valid_until.",
+          "minimum": 0,
+          "title": "Active Promotions Count",
+          "type": "integer"
+        },
+        "ingestion_jobs_in_flight": {
+          "description": "Count of ingestion_requests in pending|running status.",
+          "minimum": 0,
+          "title": "Ingestion Jobs In Flight",
+          "type": "integer"
+        },
+        "plan_tier": {
+          "default": "starter",
+          "description": "Tenant's current plan tier (mirrors tenants.plan_tier). Drives the plan label on the Dashboard/Billing screens; without it the portal falls back to 'starter' and a Pro tenant is mislabelled.",
+          "enum": [
+            "starter",
+            "pro",
+            "ultra",
+            "enterprise"
+          ],
+          "title": "Plan Tier",
+          "type": "string"
+        },
+        "quota": {
+          "$ref": "#/$defs/DashboardQuotaSummary"
+        },
+        "quota_replies_7d_sparkline": {
+          "description": "Last 7 days' daily bot_reply counts, oldest-first. Fixed length 7 so the portal sparkline component doesn't have to defend against ragged arrays.",
+          "items": {
+            "type": "integer"
+          },
+          "maxItems": 7,
+          "minItems": 7,
+          "title": "Quota Replies 7D Sparkline",
+          "type": "array"
+        },
+        "recent_conversations": {
+          "description": "Last 5 most-recently-active conversations.",
+          "items": {
+            "$ref": "#/$defs/DashboardRecentConversation"
+          },
+          "maxItems": 5,
+          "title": "Recent Conversations",
+          "type": "array"
+        },
+        "suspension_state": {
+          "anyOf": [
+            {
+              "enum": [
+                "quota_exhausted",
+                "payment_overdue"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Mirrors tenants.suspended_reason. NULL = active. quota_exhausted \u2192 red banner, bot off, Chatwoot active (ADR-018). payment_overdue \u2192 route-takeover to /pay (ADR-049) \u2014 Dashboard rarely renders in this state since middleware redirects, but the field is here for completeness.",
+          "title": "Suspension State"
+        }
+      },
+      "required": [
+        "quota",
+        "recent_conversations",
+        "active_broadcasts_count",
+        "active_promotions_count",
+        "ingestion_jobs_in_flight",
+        "quota_replies_7d_sparkline"
+      ],
+      "title": "DashboardSummary",
+      "type": "object"
+    },
+    "EmailDraftQueue": {
+      "additionalProperties": false,
+      "description": "Email assist draft queue snapshot from Phase 14.\n\nPending drafts are Chatwoot private notes awaiting agent action.\nAccepted/edited/ignored counts are resolved_at outcomes over the last 24 h.",
+      "properties": {
+        "accepted_24h": {
+          "description": "Drafts accepted by agent in last 24 h.",
+          "minimum": 0,
+          "title": "Accepted 24H",
+          "type": "integer"
+        },
+        "edited_24h": {
+          "description": "Drafts edited before send in last 24 h.",
+          "minimum": 0,
+          "title": "Edited 24H",
+          "type": "integer"
+        },
+        "ignored_24h": {
+          "description": "Drafts ignored/dismissed in last 24 h.",
+          "minimum": 0,
+          "title": "Ignored 24H",
+          "type": "integer"
+        },
+        "latest_draft_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "RFC3339 UTC of most recent draft post.",
+          "title": "Latest Draft At"
+        },
+        "pending": {
+          "description": "Draft posts awaiting agent action.",
+          "minimum": 0,
+          "title": "Pending",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "pending",
+        "accepted_24h",
+        "edited_24h",
+        "ignored_24h"
+      ],
+      "title": "EmailDraftQueue",
+      "type": "object"
+    },
+    "FilterAllOptedIn": {
+      "additionalProperties": false,
+      "description": "Match every audience_members row where opted_out_at IS NULL.\n\nThe compiler always adds ``opted_out_at IS NULL`` to the outer\nWHERE regardless of filter; this kind exists for tenants who want\n\"the whole list\" without specifying any sub-criteria.",
+      "properties": {
+        "filter_kind": {
+          "const": "all_opted_in",
+          "title": "Filter Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "filter_kind"
+      ],
+      "title": "FilterAllOptedIn",
+      "type": "object"
+    },
+    "FilterBranch": {
+      "additionalProperties": false,
+      "description": "Match a specific tenant_branch_id (Pro+ multi-branch tenants).",
+      "properties": {
+        "filter_kind": {
+          "const": "branch",
+          "title": "Filter Kind",
+          "type": "string"
+        },
+        "tenant_branch_id": {
+          "format": "uuid",
+          "title": "Tenant Branch Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "filter_kind",
+        "tenant_branch_id"
+      ],
+      "title": "FilterBranch",
+      "type": "object"
+    },
+    "FilterChannel": {
+      "additionalProperties": false,
+      "description": "Match audience_members.channel \u2208 given set.\n\nTelegram is in the type union for v2.1 forward-compat but rejected\nat the validation boundary today via the Literal restriction.",
+      "properties": {
+        "channels": {
+          "items": {
+            "enum": [
+              "whatsapp",
+              "messenger"
+            ],
+            "type": "string"
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "title": "Channels",
+          "type": "array"
+        },
+        "filter_kind": {
+          "const": "channel",
+          "title": "Filter Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "filter_kind",
+        "channels"
+      ],
+      "title": "FilterChannel",
+      "type": "object"
+    },
+    "FilterCombinedAnd": {
+      "additionalProperties": false,
+      "description": "AND-combine 2..4 sub-filters; depth=1 only at GA.\n\nNesting a combined_and inside another combined_and is rejected by\nthe ``model_validator`` below. The SQL compiler would need a CTE\nrewrite to support depth>=2 cleanly (parenthesised AND groups\nnested under another AND group); deferred.",
+      "properties": {
+        "filter_kind": {
+          "const": "combined_and",
+          "title": "Filter Kind",
+          "type": "string"
+        },
+        "parts": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/FilterAllOptedIn"
+              },
+              {
+                "$ref": "#/$defs/FilterTagsAny"
+              },
+              {
+                "$ref": "#/$defs/FilterTagsAll"
+              },
+              {
+                "$ref": "#/$defs/FilterBranch"
+              },
+              {
+                "$ref": "#/$defs/FilterLocale"
+              },
+              {
+                "$ref": "#/$defs/FilterChannel"
+              }
+            ]
+          },
+          "maxItems": 4,
+          "minItems": 2,
+          "title": "Parts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "filter_kind",
+        "parts"
+      ],
+      "title": "FilterCombinedAnd",
+      "type": "object"
+    },
+    "FilterLocale": {
+      "additionalProperties": false,
+      "description": "Match audience_members.locale \u2208 given set.",
+      "properties": {
+        "filter_kind": {
+          "const": "locale",
+          "title": "Filter Kind",
+          "type": "string"
+        },
+        "locales": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 10,
+          "minItems": 1,
+          "title": "Locales",
+          "type": "array"
+        }
+      },
+      "required": [
+        "filter_kind",
+        "locales"
+      ],
+      "title": "FilterLocale",
+      "type": "object"
+    },
+    "FilterTagsAll": {
+      "additionalProperties": false,
+      "description": "Match if audience_members.tags is a superset of the given set (@>).",
+      "properties": {
+        "filter_kind": {
+          "const": "tags_all",
+          "title": "Filter Kind",
+          "type": "string"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "title": "Tags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "filter_kind",
+        "tags"
+      ],
+      "title": "FilterTagsAll",
+      "type": "object"
+    },
+    "FilterTagsAny": {
+      "additionalProperties": false,
+      "description": "Match if audience_members.tags overlaps the given set (&&).",
+      "properties": {
+        "filter_kind": {
+          "const": "tags_any",
+          "title": "Filter Kind",
+          "type": "string"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "title": "Tags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "filter_kind",
+        "tags"
+      ],
+      "title": "FilterTagsAny",
+      "type": "object"
+    },
+    "HandoffInitiatedEventPayload": {
+      "additionalProperties": false,
+      "description": "Payload column of a webhook_events_outbound row when event_type='handoff.initiated'.\n\nAll UUIDs are tenant-scoped (audit trail). Timestamps are RFC3339 UTC\nstrings, not native datetimes, because asyncpg's JSONB serialiser\nrejects datetime objects \u2014 the convention across all\nwebhook_events_outbound payloads is string-timestamps.",
+      "properties": {
+        "business_hours_state": {
+          "description": "Which handoff_message variant was sent to the customer (handoff_message_in_hours vs handoff_message_after_hours). ADR-019.",
+          "enum": [
+            "in_hours",
+            "after_hours"
+          ],
+          "title": "Business Hours State",
+          "type": "string"
+        },
+        "channel": {
+          "enum": [
+            "whatsapp",
+            "messenger",
+            "demo",
+            "telegram",
+            "instagram_login"
+          ],
+          "title": "Channel",
+          "type": "string"
+        },
+        "chatwoot_conversation_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Chatwoot's conversation.id once the status flip succeeded. NULL on outcome != CONFIRMED (Chatwoot never accepted the flip).",
+          "title": "Chatwoot Conversation Id"
+        },
+        "conversation_id": {
+          "description": "Polaris conversations.id \u2014 joins to messages.conversation_id.",
+          "format": "uuid",
+          "title": "Conversation Id",
+          "type": "string"
+        },
+        "initiated_at": {
+          "description": "RFC3339 UTC. When Polaris's handoff service started the orchestration.",
+          "title": "Initiated At",
+          "type": "string"
+        },
+        "reason": {
+          "default": "intent_classified",
+          "description": "Why the handoff fired. ``intent_classified`` = LLM detected handoff intent. ``stop_keyword`` = STOP / BERHENTI matcher fired (future v2.1 \u2014 currently STOP triggers opt-out, not handoff). ``flow_node`` = tenant-authored flow explicitly routes via a handoff node.",
+          "enum": [
+            "intent_classified",
+            "stop_keyword",
+            "flow_node"
+          ],
+          "title": "Reason",
+          "type": "string"
+        },
+        "requested_at": {
+          "description": "RFC3339 UTC. When the customer's handoff intent was classified \u2014 i.e. the timestamp of the inbound message that triggered handoff.",
+          "title": "Requested At",
+          "type": "string"
+        },
+        "team_id": {
+          "description": "HandoffNode.team_id from the flow definition (Q-PHASE7-05: per-flow source only). String not int because flow definitions carry team_ids as strings (Chatwoot team_id is int \u2014 translated at the client layer).",
+          "title": "Team Id",
+          "type": "string"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "version": {
+          "const": 1,
+          "default": 1,
+          "description": "Payload version. Bumps when the schema breaks. v3.0 worker switches on this field to select the deserialiser.",
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tenant_id",
+        "conversation_id",
+        "channel",
+        "requested_at",
+        "initiated_at",
+        "team_id",
+        "business_hours_state"
+      ],
+      "title": "HandoffInitiatedEventPayload",
+      "type": "object"
+    },
+    "HandoffResult": {
+      "additionalProperties": false,
+      "description": "Returned by services/chatwoot/handoff.py::initiate_handoff.\n\nCarried up through the flow runtime adapter into the handoff node\nexecutor's NodeResult.decision payload, so flow authors can inspect\nthe outcome details via flow_run.step_trace.",
+      "properties": {
+        "business_hours_state": {
+          "enum": [
+            "in_hours",
+            "after_hours"
+          ],
+          "title": "Business Hours State",
+          "type": "string"
+        },
+        "chatwoot_conversation_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chatwoot Conversation Id"
+        },
+        "chatwoot_status_flipped": {
+          "title": "Chatwoot Status Flipped",
+          "type": "boolean"
+        },
+        "customer_message_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Customer Message Id"
+        },
+        "customer_message_sent": {
+          "title": "Customer Message Sent",
+          "type": "boolean"
+        },
+        "handoff_at": {
+          "description": "RFC3339 UTC instant of completion",
+          "title": "Handoff At",
+          "type": "string"
+        },
+        "outcome": {
+          "enum": [
+            "confirmed",
+            "declined",
+            "errored"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "private_note_posted": {
+          "title": "Private Note Posted",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set when outcome != 'confirmed'. Free-form classifier string (e.g. 'no_conversation', 'chatwoot_5xx_after_retries', 'team_not_found'). Carried into flow_run.step_trace for audit.",
+          "title": "Reason"
+        },
+        "team_assigned": {
+          "title": "Team Assigned",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "outcome",
+        "chatwoot_status_flipped",
+        "team_assigned",
+        "private_note_posted",
+        "customer_message_sent",
+        "handoff_at",
+        "business_hours_state"
+      ],
+      "title": "HandoffResult",
+      "type": "object"
+    },
+    "HealthSnapshot": {
+      "additionalProperties": false,
+      "description": "Aggregate read for ``GET /api/admin/health``.\n\nSignals are loaded in parallel server-side; an outage on any one\nrenders that tile only (no fail-the-whole-page) per the\nsilent-failure-hunter gate in PR-6.",
+      "properties": {
+        "active_tenants": {
+          "$ref": "#/$defs/ActiveTenants"
+        },
+        "apm": {
+          "$ref": "#/$defs/ApmErrors"
+        },
+        "broadcasts": {
+          "$ref": "#/$defs/BroadcastQueueDepth"
+        },
+        "chatwoot": {
+          "$ref": "#/$defs/ServiceConnectivity"
+        },
+        "ea": {
+          "$ref": "#/$defs/ServiceConnectivity"
+        },
+        "email_drafts": {
+          "$ref": "#/$defs/EmailDraftQueue"
+        },
+        "failures": {
+          "$ref": "#/$defs/RecentFailures"
+        },
+        "knowledge_gaps": {
+          "$ref": "#/$defs/KnowledgeGapCaptures"
+        },
+        "llm": {
+          "$ref": "#/$defs/LlmTokenBurn"
+        },
+        "messaging": {
+          "$ref": "#/$defs/MessagingVolume"
+        },
+        "meta_rate_limits": {
+          "items": {
+            "$ref": "#/$defs/MetaRateLimitHeadroom"
+          },
+          "title": "Meta Rate Limits",
+          "type": "array"
+        },
+        "meta_webhooks": {
+          "$ref": "#/$defs/WebhookSurfaceHealth"
+        },
+        "quota": {
+          "$ref": "#/$defs/QuotaSaturation"
+        },
+        "redis": {
+          "$ref": "#/$defs/RedisStatus"
+        },
+        "refreshed_at": {
+          "description": "RFC3339 UTC of this snapshot.",
+          "title": "Refreshed At",
+          "type": "string"
+        },
+        "supabase": {
+          "$ref": "#/$defs/SupabaseStatus"
+        },
+        "telegram_webhooks": {
+          "$ref": "#/$defs/WebhookSurfaceHealth"
+        },
+        "webhook_event_errors": {
+          "$ref": "#/$defs/WebhookEventBreakdown"
+        }
+      },
+      "required": [
+        "supabase",
+        "redis",
+        "broadcasts",
+        "messaging",
+        "llm",
+        "quota",
+        "failures",
+        "meta_rate_limits",
+        "email_drafts",
+        "knowledge_gaps",
+        "active_tenants",
+        "chatwoot",
+        "ea",
+        "telegram_webhooks",
+        "meta_webhooks",
+        "webhook_event_errors",
+        "apm",
+        "refreshed_at"
+      ],
+      "title": "HealthSnapshot",
+      "type": "object"
+    },
+    "HealthStatus": {
+      "description": "Single source of truth for the GET /health response shape.",
+      "properties": {
+        "redis": {
+          "enum": [
+            "reachable",
+            "unreachable"
+          ],
+          "title": "Redis",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "degraded",
+            "down"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "supabase": {
+          "enum": [
+            "reachable",
+            "unreachable"
+          ],
+          "title": "Supabase",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "supabase",
+        "redis",
+        "version"
+      ],
+      "title": "HealthStatus",
+      "type": "object"
+    },
+    "IncomingMessage": {
+      "description": "Normalised inbound event emitted by the webhook dispatcher.\n\nConsumer contract:\n  - The same shape is enqueued whether the source is Meta (WA / IG /\n    Messenger) or Chatwoot. Per-channel quirks live in the\n    dispatcher, NOT here.\n  - ``received_at`` is the Polaris-server receive time; use that for\n    Polaris-side ordering. ``provider_sent_at`` is the\n    provider-claimed send time when present and is useful for\n    latency measurements + log correlation, but should not gate\n    application logic (provider clocks drift).\n  - ``body`` may be ``None`` for media-only messages; consumers\n    must handle the ``attachments`` list independently. For WA\n    media-with-caption messages the caption lands in ``body``\n    (caption is conversational intent; treating it specially would\n    force every consumer to merge two text sources).\n  - ``in_reply_to`` is the provider-side id of the message being\n    replied to when the user used a reply / quote feature.\n    ``None`` for the common case (new message, not a reply).",
+      "properties": {
+        "attachments": {
+          "items": {
+            "$ref": "#/$defs/Attachment"
+          },
+          "title": "Attachments",
+          "type": "array"
+        },
+        "body": {
+          "anyOf": [
+            {
+              "maxLength": 10000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
+        },
+        "channel_id": {
+          "format": "uuid",
+          "title": "Channel Id",
+          "type": "string"
+        },
+        "chatwoot_account_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chatwoot Account Id"
+        },
+        "chatwoot_conversation_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chatwoot Conversation Id"
+        },
+        "in_reply_to": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "In Reply To"
+        },
+        "provider": {
+          "enum": [
+            "whatsapp",
+            "messenger",
+            "chatwoot",
+            "telegram",
+            "instagram_login"
+          ],
+          "title": "Provider",
+          "type": "string"
+        },
+        "provider_message_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Provider Message Id",
+          "type": "string"
+        },
+        "provider_sent_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Sent At"
+        },
+        "received_at": {
+          "format": "date-time",
+          "title": "Received At",
+          "type": "string"
+        },
+        "sender": {
+          "$ref": "#/$defs/SenderRef"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tenant_id",
+        "channel_id",
+        "provider",
+        "provider_message_id",
+        "sender",
+        "received_at"
+      ],
+      "title": "IncomingMessage",
+      "type": "object"
+    },
+    "IngestionRequestResponse": {
+      "description": "Tenant-facing response for POST/GET on ``/api/tenant/knowledge/requests``.\n\n``eta`` = ``submitted_at + 24h`` per PRD \u00a76.2 SLA. ``status_url`` is\na relative path the portal can poll without hard-coding the API host.\nCounts (``chunks_added`` / ``_skipped`` / ``_deleted``) are NULL\nuntil the desktop processes the row.",
+      "properties": {
+        "chunks_added": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Chunks Added"
+        },
+        "chunks_deleted": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Chunks Deleted"
+        },
+        "chunks_skipped": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Chunks Skipped"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Completed At"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error"
+        },
+        "eta": {
+          "format": "date-time",
+          "title": "Eta",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "ingest_mode": {
+          "enum": [
+            "add",
+            "sync",
+            "replace"
+          ],
+          "title": "Ingest Mode",
+          "type": "string"
+        },
+        "source_type": {
+          "enum": [
+            "url",
+            "file",
+            "text"
+          ],
+          "title": "Source Type",
+          "type": "string"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Started At"
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "processing",
+            "partial",
+            "completed",
+            "failed",
+            "cancelled"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "status_url": {
+          "title": "Status Url",
+          "type": "string"
+        },
+        "submitted_at": {
+          "format": "date-time",
+          "title": "Submitted At",
+          "type": "string"
+        },
+        "tenant_branch_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Tenant Branch Id"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "tokens_used": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Tokens Used"
+        }
+      },
+      "required": [
+        "id",
+        "tenant_id",
+        "tenant_branch_id",
+        "source_type",
+        "ingest_mode",
+        "status",
+        "submitted_at",
+        "started_at",
+        "completed_at",
+        "chunks_added",
+        "chunks_skipped",
+        "chunks_deleted",
+        "tokens_used",
+        "error",
+        "eta",
+        "status_url"
+      ],
+      "title": "IngestionRequestResponse",
+      "type": "object"
+    },
+    "IngestionRequestSubmit": {
+      "description": "Tenant-facing request body for ``POST /api/tenant/knowledge/requests``.\n\nPydantic-side shape validation parallels the SQL CHECK so callers\nsee a clean 422 instead of a 500 + integrity-error round-trip.\nField bounds match the desktop's safe operating envelope (crawl\ndepth \u2264 10, pages \u2264 2000, OCR languages \u2264 4) so a runaway request\ncan't burn an arbitrary amount of desktop CPU before its own caps\nkick in.",
+      "properties": {
+        "contextual_enrichment": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Contextual Enrichment"
+        },
+        "crawl_max_depth": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Crawl Max Depth"
+        },
+        "crawl_max_pages": {
+          "anyOf": [
+            {
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Crawl Max Pages"
+        },
+        "ingest_mode": {
+          "default": "sync",
+          "enum": [
+            "add",
+            "sync",
+            "replace"
+          ],
+          "title": "Ingest Mode",
+          "type": "string"
+        },
+        "ocr_enabled": {
+          "default": false,
+          "title": "Ocr Enabled",
+          "type": "boolean"
+        },
+        "ocr_languages": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 4,
+          "title": "Ocr Languages",
+          "type": "array"
+        },
+        "source_text": {
+          "anyOf": [
+            {
+              "maxLength": 102400,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Text"
+        },
+        "source_type": {
+          "enum": [
+            "url",
+            "file",
+            "text"
+          ],
+          "title": "Source Type",
+          "type": "string"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Url"
+        },
+        "storage_paths": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Storage Paths"
+        },
+        "tenant_branch_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tenant Branch Id"
+        }
+      },
+      "required": [
+        "source_type"
+      ],
+      "title": "IngestionRequestSubmit",
+      "type": "object"
+    },
+    "InvoiceStatus": {
+      "enum": [
+        "open",
+        "paid",
+        "overdue",
+        "void"
+      ],
+      "title": "InvoiceStatus",
+      "type": "string"
+    },
+    "IssueInvoiceRequest": {
+      "additionalProperties": false,
+      "description": "Request body for ``POST /api/admin/billing/invoices``.\n\nThe router computes invoice_number via the invoice_sequence table,\npopulates issued_at + status='open', and renders + uploads the PDF.\nperiod is a free-text label per migration 008 (e.g. '2026-06' for\nmonthly, '2026' for annual); proration_basis JSONB carries the\nricher breakdown (kind, period_start/end, subtotal/tax split,\nquote reference, renderer_version) for audit.",
+      "properties": {
+        "amount_myr": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,2}0*$",
+              "type": "string"
+            }
+          ],
+          "description": "Final charge to the tenant. Tax breakdown lives in proration_basis JSONB.",
+          "title": "Amount Myr"
+        },
+        "due_at": {
+          "description": "RFC3339 UTC. Daily cron flips status -> overdue when NOW() > due_at AND status = 'open'.",
+          "title": "Due At",
+          "type": "string"
+        },
+        "period": {
+          "description": "Free-text period label. Convention: 'YYYY-MM' or 'YYYY'.",
+          "maxLength": 20,
+          "minLength": 4,
+          "title": "Period",
+          "type": "string"
+        },
+        "proration_basis": {
+          "additionalProperties": true,
+          "description": "JSONB snapshot per 00c \u00a712.4.1. Convention keys: {kind, period_start, period_end, subtotal_myr, tax_myr, original_tier, target_tier, prorate_basis, quote_id, renderer_version}. Audit-grade; do not mutate after issue.",
+          "title": "Proration Basis",
+          "type": "object"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tenant_id",
+        "period",
+        "amount_myr",
+        "due_at"
+      ],
+      "title": "IssueInvoiceRequest",
+      "type": "object"
+    },
+    "KnowledgeChunkHit": {
+      "description": "One row from ``match_knowledge_chunks`` / ``_hybrid``.\n\nPer-field semantics:\n  * ``id`` \u2014 knowledge_chunks.id (UUID).\n  * ``content`` \u2014 full chunk text (bounded by chunker; ADR-032\n    default 512 tokens, per-tenant override via tenants.settings).\n  * ``source_name`` \u2014 display label (URL, filename, etc.) for\n    citation rendering in Phase 8 portal.\n  * ``rrf_score`` \u2014 primary sort key, higher = better. Always\n    populated.\n  * ``vector_rank`` / ``bm25_rank`` \u2014 1-based ranks within the\n    candidate pool for each leg; ``None`` when the chunk only\n    matched the OTHER leg (FULL OUTER JOIN in the hybrid RPC).\n  * ``distance`` \u2014 populated by the vector-only fallback; ``None``\n    from the hybrid RPC.",
+      "properties": {
+        "bm25_rank": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bm25 Rank"
+        },
+        "content": {
+          "title": "Content",
+          "type": "string"
+        },
+        "distance": {
+          "anyOf": [
+            {
+              "maximum": 2.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Distance"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "rrf_score": {
+          "title": "Rrf Score",
+          "type": "number"
+        },
+        "source_name": {
+          "title": "Source Name",
+          "type": "string"
+        },
+        "vector_rank": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vector Rank"
+        }
+      },
+      "required": [
+        "id",
+        "content",
+        "source_name",
+        "rrf_score"
+      ],
+      "title": "KnowledgeChunkHit",
+      "type": "object"
+    },
+    "KnowledgeGapCaptures": {
+      "additionalProperties": false,
+      "description": "Knowledge gap miss captures from Phase 15 (Ultra-tier only).\n\nCounts are drawn from knowledge_gap_misses over the last 24 h, grouped\nby signal_type (no_retrieval | low_retrieval | handoff).",
+      "properties": {
+        "handoff_24h": {
+          "description": "Misses with signal_type=handoff.",
+          "minimum": 0,
+          "title": "Handoff 24H",
+          "type": "integer"
+        },
+        "latest_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "RFC3339 UTC of most recent gap capture.",
+          "title": "Latest At"
+        },
+        "low_retrieval_24h": {
+          "description": "Misses with signal_type=low_retrieval.",
+          "minimum": 0,
+          "title": "Low Retrieval 24H",
+          "type": "integer"
+        },
+        "no_retrieval_24h": {
+          "description": "Misses with signal_type=no_retrieval.",
+          "minimum": 0,
+          "title": "No Retrieval 24H",
+          "type": "integer"
+        },
+        "total_24h": {
+          "description": "Sum of all signal types over last 24 h.",
+          "minimum": 0,
+          "title": "Total 24H",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "no_retrieval_24h",
+        "low_retrieval_24h",
+        "handoff_24h",
+        "total_24h"
+      ],
+      "title": "KnowledgeGapCaptures",
+      "type": "object"
+    },
+    "KnowledgeGapExample": {
+      "additionalProperties": false,
+      "description": "One raw miss row for a theme's drill-down view.\n\nReturned by ``GET /api/tenant/knowledge-gaps/summary/examples``.\n``conversation_id`` links to the portal conversation detail page.",
+      "properties": {
+        "conversation_id": {
+          "description": "UUID of the conversation this miss belongs to.",
+          "title": "Conversation Id",
+          "type": "string"
+        },
+        "created_at": {
+          "description": "ISO 8601 UTC timestamp of when the miss was captured.",
+          "title": "Created At",
+          "type": "string"
+        },
+        "customer_question": {
+          "description": "Raw inbound question text that went unanswered.",
+          "title": "Customer Question",
+          "type": "string"
+        },
+        "signal_type": {
+          "description": "Miss signal: 'no_retrieval', 'low_retrieval', or 'handoff'.",
+          "title": "Signal Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "conversation_id",
+        "created_at",
+        "customer_question",
+        "signal_type"
+      ],
+      "title": "KnowledgeGapExample",
+      "type": "object"
+    },
+    "KnowledgeGapExamplesResponse": {
+      "additionalProperties": false,
+      "description": "Envelope for the drill-down examples endpoint.",
+      "properties": {
+        "examples": {
+          "description": "Raw miss rows for the requested theme, newest-first, capped at 20.",
+          "items": {
+            "$ref": "#/$defs/KnowledgeGapExample"
+          },
+          "title": "Examples",
+          "type": "array"
+        }
+      },
+      "required": [
+        "examples"
+      ],
+      "title": "KnowledgeGapExamplesResponse",
+      "type": "object"
+    },
+    "KnowledgeGapTheme": {
+      "additionalProperties": false,
+      "description": "One clustered gap \u2014 a group of near-identical unanswered questions.\n\nv1 grouping is by normalized question text (lowercase, punctuation-stripped,\nwhitespace-collapsed), so distinct phrasings may not merge until the M2\nsemantic-clustering upgrade. ``example_question`` is the most-recent raw\nphrasing in the group, shown to the tenant verbatim.\n\n``norm_q`` is the stable grouping key \u2014 pass it as the ``q`` param to\n``GET /summary/examples`` to fetch the contributing raw rows.",
+      "properties": {
+        "ask_count": {
+          "description": "Total misses in this theme within the window.",
+          "minimum": 1,
+          "title": "Ask Count",
+          "type": "integer"
+        },
+        "example_question": {
+          "description": "Most-recent raw phrasing in this group (display verbatim).",
+          "title": "Example Question",
+          "type": "string"
+        },
+        "handoff_count": {
+          "description": "Misses signalled by handoff.",
+          "minimum": 0,
+          "title": "Handoff Count",
+          "type": "integer"
+        },
+        "last_seen": {
+          "description": "RFC3339 UTC of the most recent miss.",
+          "title": "Last Seen",
+          "type": "string"
+        },
+        "low_retrieval_count": {
+          "description": "Misses signalled by low RAG retrieval score.",
+          "minimum": 0,
+          "title": "Low Retrieval Count",
+          "type": "integer"
+        },
+        "no_retrieval_count": {
+          "description": "Misses signalled by zero RAG retrieval.",
+          "minimum": 0,
+          "title": "No Retrieval Count",
+          "type": "integer"
+        },
+        "norm_q": {
+          "description": "Stable normalized key for this theme group (lowercase, punctuation\u2192space, whitespace-collapsed). Pass as `q` to GET /summary/examples for drill-down.",
+          "title": "Norm Q",
+          "type": "string"
+        },
+        "recent_count": {
+          "description": "Misses in the last 7 days \u2014 a trend hint (rising if a large share of ask_count).",
+          "minimum": 0,
+          "title": "Recent Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "norm_q",
+        "example_question",
+        "ask_count",
+        "recent_count",
+        "last_seen",
+        "handoff_count",
+        "no_retrieval_count",
+        "low_retrieval_count"
+      ],
+      "title": "KnowledgeGapTheme",
+      "type": "object"
+    },
+    "KnowledgeGapsSummary": {
+      "additionalProperties": false,
+      "description": "Full envelope for the Knowledge Gaps screen \u2014 one round-trip.",
+      "properties": {
+        "plan_tier": {
+          "description": "Tenant's plan tier (mirrors tenants.plan_tier).",
+          "title": "Plan Tier",
+          "type": "string"
+        },
+        "themes": {
+          "description": "Ranked gap themes, highest ask_count first (capped server-side).",
+          "items": {
+            "$ref": "#/$defs/KnowledgeGapTheme"
+          },
+          "title": "Themes",
+          "type": "array"
+        },
+        "total_misses": {
+          "description": "Total miss rows in the window (pre-grouping).",
+          "minimum": 0,
+          "title": "Total Misses",
+          "type": "integer"
+        },
+        "window_days": {
+          "description": "Look-back window the themes were aggregated over.",
+          "minimum": 1,
+          "title": "Window Days",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "plan_tier",
+        "window_days",
+        "total_misses",
+        "themes"
+      ],
+      "title": "KnowledgeGapsSummary",
+      "type": "object"
+    },
+    "KnowledgeSourceCreate": {
+      "description": "Tenant-facing request body for ``POST /api/tenant/knowledge/sources``.\n\nPydantic-side shape validation parallels the SQL CHECK in migration 118\nso callers see a clean 422 instead of a 500 + integrity-error round-trip.\n\n``desired_hash`` is caller-supplied:\n  * url  \u2192 SHA-256(url string)  \u2014 stable as long as the URL is unchanged\n  * file \u2192 SHA-256(file bytes)  \u2014 computed browser-side before the sign step\n  * text \u2192 SHA-256(source_text) \u2014 computed from the body text\n\nThe reconciler uses this to skip unchanged sources on every Sync run.",
+      "properties": {
+        "desired_hash": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Desired Hash",
+          "type": "string"
+        },
+        "source_label": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Source Label",
+          "type": "string"
+        },
+        "source_text": {
+          "anyOf": [
+            {
+              "maxLength": 102400,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Text"
+        },
+        "source_type": {
+          "enum": [
+            "url",
+            "file",
+            "text"
+          ],
+          "title": "Source Type",
+          "type": "string"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Url"
+        },
+        "storage_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Storage Path"
+        },
+        "tenant_branch_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tenant Branch Id"
+        }
+      },
+      "required": [
+        "source_type",
+        "source_label",
+        "desired_hash"
+      ],
+      "title": "KnowledgeSourceCreate",
+      "type": "object"
+    },
+    "KnowledgeSourceResponse": {
+      "description": "Tenant-facing response for POST/GET on ``/api/tenant/knowledge/sources``.\n\nIntentionally lean: ``desired_hash`` and ``source_text`` body are\nomitted \u2014 they are reconciler-internal and potentially large.\n``source_url`` and ``storage_path`` are included so the portal can\ndisplay the source location. ``status`` + ``chunk_count`` +\n``last_synced_at`` power the reconciliation state column.",
+      "properties": {
+        "chunk_count": {
+          "title": "Chunk Count",
+          "type": "integer"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "last_synced_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Synced At"
+        },
+        "source_label": {
+          "title": "Source Label",
+          "type": "string"
+        },
+        "source_type": {
+          "enum": [
+            "url",
+            "file",
+            "text"
+          ],
+          "title": "Source Type",
+          "type": "string"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Url"
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "syncing",
+            "synced",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "storage_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Storage Path"
+        },
+        "tenant_branch_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Tenant Branch Id"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "tenant_id",
+        "tenant_branch_id",
+        "source_type",
+        "source_url",
+        "storage_path",
+        "source_label",
+        "status",
+        "chunk_count",
+        "last_synced_at",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "KnowledgeSourceResponse",
+      "type": "object"
+    },
+    "LlmTokenBurn": {
+      "additionalProperties": false,
+      "description": "LLM token throughput from the ``messages`` table.\n\nAuthoritative MYR spend lives in Grafana Cloud (the Cost dashboard);\n``est_cost_myr_mtd`` here is a local best-effort estimate from token\ncounts and is NULL when no pricing map is available.",
+      "properties": {
+        "est_cost_myr_mtd": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Local estimate; Cost dashboard (Mimir) is source of record.",
+          "title": "Est Cost Myr Mtd"
+        },
+        "input_tokens_24h": {
+          "minimum": 0,
+          "title": "Input Tokens 24H",
+          "type": "integer"
+        },
+        "input_tokens_mtd": {
+          "minimum": 0,
+          "title": "Input Tokens Mtd",
+          "type": "integer"
+        },
+        "output_tokens_24h": {
+          "minimum": 0,
+          "title": "Output Tokens 24H",
+          "type": "integer"
+        },
+        "output_tokens_mtd": {
+          "minimum": 0,
+          "title": "Output Tokens Mtd",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "input_tokens_24h",
+        "output_tokens_24h",
+        "input_tokens_mtd",
+        "output_tokens_mtd"
+      ],
+      "title": "LlmTokenBurn",
+      "type": "object"
+    },
+    "MessageDetail": {
+      "additionalProperties": false,
+      "description": "One message in the read-only detail pane.\n\nThe shape carries the bot-side telemetry the operator wants to see \u2014\nintent, which model the dispatcher picked, response latency, how\nmany RAG chunks fed the reply \u2014 but **not** the chunk contents\nthemselves (RAG bodies live in ``knowledge_chunks`` and surfacing\nthem would bloat the payload for no portal-side use case).\n\nTokens are optional everywhere because pre-Phase-4 messages don't\ncarry telemetry and inbound user messages are never tokenized at\nwrite time (the loader heuristic kicks in only when a window is\nbeing assembled for the LLM).",
+      "properties": {
+        "author_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author Name"
+        },
+        "author_type": {
+          "default": "bot",
+          "enum": [
+            "bot",
+            "human_agent"
+          ],
+          "title": "Author Type",
+          "type": "string"
+        },
+        "cache_read_tokens": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cache Read Tokens"
+        },
+        "content": {
+          "title": "Content",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "input_tokens": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Input Tokens"
+        },
+        "intent": {
+          "anyOf": [
+            {
+              "enum": [
+                "greeting",
+                "faq",
+                "booking",
+                "handoff",
+                "promo",
+                "other"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Intent"
+        },
+        "model_used": {
+          "anyOf": [
+            {
+              "enum": [
+                "haiku",
+                "sonnet",
+                "gpt-4o-mini-fallback"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Model Used"
+        },
+        "output_tokens": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Tokens"
+        },
+        "rag_chunk_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Rag Chunk Count",
+          "type": "integer"
+        },
+        "response_time_ms": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Response Time Ms"
+        },
+        "role": {
+          "enum": [
+            "user",
+            "assistant",
+            "system"
+          ],
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "role",
+        "content",
+        "intent",
+        "model_used",
+        "created_at"
+      ],
+      "title": "MessageDetail",
+      "type": "object"
+    },
+    "MessagingVolume": {
+      "additionalProperties": false,
+      "description": "Conversation throughput from the ``messages`` table.\n\nDirection inferred from ``role`` (user = inbound, assistant = outbound).\nbot_replies_mtd comes from ``tenant_usage`` (metered bot replies this\nbilling month, summed across tenants).",
+      "properties": {
+        "bot_replies_mtd": {
+          "description": "Metered bot replies, month-to-date.",
+          "minimum": 0,
+          "title": "Bot Replies Mtd",
+          "type": "integer"
+        },
+        "inbound_24h": {
+          "minimum": 0,
+          "title": "Inbound 24H",
+          "type": "integer"
+        },
+        "last_message_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "RFC3339 UTC of newest message.",
+          "title": "Last Message At"
+        },
+        "outbound_24h": {
+          "minimum": 0,
+          "title": "Outbound 24H",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "inbound_24h",
+        "outbound_24h",
+        "bot_replies_mtd"
+      ],
+      "title": "MessagingVolume",
+      "type": "object"
+    },
+    "MessengerGetStarted": {
+      "additionalProperties": false,
+      "description": "The 'Get Started' button shown on the welcome screen.\n\nCustomers who have never messaged the Page see a single CTA button\non the empty conversation. Tapping fires this payload to the bot,\nwhich typically routes to the onboarding flow.",
+      "properties": {
+        "payload": {
+          "description": "Postback payload fired when customer taps the 'Get Started' button. Polaris convention: 'get_started' (literal string) or 'get_started:<flow_slug>'.",
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Payload",
+          "type": "string"
+        }
+      },
+      "required": [
+        "payload"
+      ],
+      "title": "MessengerGetStarted",
+      "type": "object"
+    },
+    "MessengerIcebreaker": {
+      "additionalProperties": false,
+      "description": "One icebreaker entry in the messenger_profile.ice_breakers array.\n\nShown as a tappable chip above the message-input box when a customer\nfirst opens the FB Messenger conversation with the tenant's Page.\nTapping sends ``payload`` to the bot as a postback (not as the\nvisible question text).",
+      "properties": {
+        "payload": {
+          "description": "Bot-side postback payload when customer taps the icebreaker. Polaris convention: prefix with 'icebreaker:' for routing (e.g. 'icebreaker:hours'). Meta cap: 1000 chars.",
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Payload",
+          "type": "string"
+        },
+        "question": {
+          "description": "Customer-visible prompt text (Meta cap: 80 chars).",
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Question",
+          "type": "string"
+        }
+      },
+      "required": [
+        "question",
+        "payload"
+      ],
+      "title": "MessengerIcebreaker",
+      "type": "object"
+    },
+    "MessengerPersistentMenu": {
+      "additionalProperties": false,
+      "description": "One locale-scoped persistent menu.\n\n``locale='default'`` applies cross-locale (Meta's wildcard).\nSpecific locales (e.g. ``locale='zh_CN'``) override the default for\ncustomers whose Messenger UI is in that locale.\n\n``composer_input_disabled=True`` removes the free-text input box \u2014\ncustomers can ONLY interact via the menu CTAs and icebreakers. Used\nby tenants with strictly menu-driven flows (booking-only, FAQ-only).",
+      "properties": {
+        "call_to_actions": {
+          "description": "1-3 CTAs per Meta. Order = display order top-to-bottom in the menu.",
+          "items": {
+            "$ref": "#/$defs/PersistentMenuCallToAction"
+          },
+          "maxItems": 3,
+          "minItems": 1,
+          "title": "Call To Actions",
+          "type": "array"
+        },
+        "composer_input_disabled": {
+          "default": false,
+          "description": "If True, customer cannot type free text \u2014 menu-only interaction.",
+          "title": "Composer Input Disabled",
+          "type": "boolean"
+        },
+        "locale": {
+          "default": "default",
+          "description": "Meta locale code or 'default'.",
+          "title": "Locale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "call_to_actions"
+      ],
+      "title": "MessengerPersistentMenu",
+      "type": "object"
+    },
+    "MessengerProfileBundle": {
+      "additionalProperties": false,
+      "description": "Full bundle PUT to Meta /messenger_profile.\n\nQ-PHASE7-06: Phase 7 always PUTs all three sections, even when the\ntenant only edited one. Simpler code, fewer Meta edge cases (partial\nPUT semantics are inconsistent across Meta SDK versions).\n\nEmpty lists (``ice_breakers=[]``, ``persistent_menu=[]``) clear those\nsections in Meta. ``get_started=None`` is the only way to UNSET that\nsection \u2014 a None means \"feature not configured\".",
+      "properties": {
+        "get_started": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MessengerGetStarted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Welcome-screen CTA. None means feature not configured / cleared."
+        },
+        "ice_breakers": {
+          "description": "Up to 4 icebreakers per Meta. Empty list clears the section.",
+          "items": {
+            "$ref": "#/$defs/MessengerIcebreaker"
+          },
+          "maxItems": 4,
+          "title": "Ice Breakers",
+          "type": "array"
+        },
+        "persistent_menu": {
+          "description": "Per-locale menus. Empty list clears the section.",
+          "items": {
+            "$ref": "#/$defs/MessengerPersistentMenu"
+          },
+          "title": "Persistent Menu",
+          "type": "array"
+        }
+      },
+      "title": "MessengerProfileBundle",
+      "type": "object"
+    },
+    "MessengerProfilePushResult": {
+      "additionalProperties": false,
+      "description": "Returned by services/messenger_profile.py::push_profile.\n\n``diff_against_remote`` carries the partial-success surface: Meta\nsometimes returns 200 even when a subset of fields didn't update\n(e.g. an icebreaker with an emoji that violates a locale rule\nsurvives validation but is silently dropped). We re-GET after every\npush and surface the diff in this field for the portal to render.",
+      "properties": {
+        "diff_against_remote": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Non-None when re-GET of /messenger_profile shows mismatch vs what we sent. Keys map to bundle sections; values describe the drift. Drives portal 'out-of-sync' banner.",
+          "title": "Diff Against Remote"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Classified error string when success=False. Vocabulary: 'meta_400_invalid_payload', 'meta_401_token_revoked', 'meta_5xx_after_retries', 'timeout'.",
+          "title": "Error"
+        },
+        "fields_pushed": {
+          "items": {
+            "enum": [
+              "ice_breakers",
+              "persistent_menu",
+              "get_started"
+            ],
+            "type": "string"
+          },
+          "title": "Fields Pushed",
+          "type": "array"
+        },
+        "pushed_at": {
+          "description": "RFC3339 UTC instant of POST completion.",
+          "title": "Pushed At",
+          "type": "string"
+        },
+        "success": {
+          "title": "Success",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "success",
+        "pushed_at",
+        "fields_pushed"
+      ],
+      "title": "MessengerProfilePushResult",
+      "type": "object"
+    },
+    "MetaRateLimitHeadroom": {
+      "additionalProperties": false,
+      "description": "Meta Graph API rate-limit headroom per surface.\n\nPolaris captures the ``X-Business-Use-Case-Usage`` header from\nevery Meta call and averages it over the last 24 h. calls_remaining_pct\nis 100 - usage (so 100% = full headroom, 0% = throttled).",
+      "properties": {
+        "calls_remaining_pct": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Calls Remaining Pct",
+          "type": "number"
+        },
+        "last_observed_at": {
+          "description": "RFC3339 UTC.",
+          "title": "Last Observed At",
+          "type": "string"
+        },
+        "surface": {
+          "description": "whatsapp | instagram | messenger.",
+          "title": "Surface",
+          "type": "string"
+        }
+      },
+      "required": [
+        "surface",
+        "calls_remaining_pct",
+        "last_observed_at"
+      ],
+      "title": "MetaRateLimitHeadroom",
+      "type": "object"
+    },
+    "Notification": {
+      "additionalProperties": false,
+      "description": "One row in the portal feed. Shape returned by\n``GET /api/tenant/notifications`` and ``PATCH .../{id}``.\n\nTimestamps are RFC3339 UTC strings (asyncpg's JSONB serialiser\nrejects datetime objects, and the column reads come back as\n``datetime`` which we ``.isoformat()`` at the router layer \u2014 the\nstring contract here is what the portal sees).",
+      "properties": {
+        "body": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
+        },
+        "created_at": {
+          "description": "RFC3339 UTC.",
+          "title": "Created At",
+          "type": "string"
+        },
+        "href": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Click-through path to the relevant portal screen.",
+          "title": "Href"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/NotificationKind"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "description": "Free-form renderer-side payload (template_id, broadcast_id, invoice_number, etc.). Schema is per-kind; not validated at the Notification level so adding a kind doesn't require a shape bump.",
+          "title": "Metadata",
+          "type": "object"
+        },
+        "read_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "RFC3339 UTC. NULL = unread.",
+          "title": "Read At"
+        },
+        "recipient_user_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "NULL = tenant-wide; non-NULL = single auth.users row.",
+          "title": "Recipient User Id"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "tenant_id",
+        "kind",
+        "title",
+        "created_at"
+      ],
+      "title": "Notification",
+      "type": "object"
+    },
+    "NotificationKind": {
+      "description": "Catalogued event kinds. Match the comment block on\n``notifications.kind`` in migration 051.\n\nStrings (not opaque ints) so the bell-icon UI can switch on the\nvalue directly without an extra lookup. Past-tense aligned with\nADR-051's outbound-webhook naming convention.",
+      "enum": [
+        "template_approved",
+        "template_rejected",
+        "template_paused",
+        "template_disabled",
+        "broadcast_completed",
+        "broadcast_failed",
+        "invoice_issued",
+        "invoice_overdue",
+        "invoice_paid",
+        "plan_change_approved",
+        "account_deletion_grace_warning",
+        "ingestion_complete",
+        "ingestion_failed",
+        "ingestion_partial",
+        "quota_replies_80",
+        "quota_replies_100",
+        "mm_lite_status_changed",
+        "branch_agent_invite_accepted",
+        "demo_session_converted"
+      ],
+      "title": "NotificationKind",
+      "type": "string"
+    },
+    "NotificationListResponse": {
+      "additionalProperties": false,
+      "description": "Envelope for ``GET /api/tenant/notifications``.\n\nCursor pagination: ``next_cursor`` is opaque (currently the\ncreated_at of the last item, but the contract makes no promise so\nwe can switch to a tie-breaker key without changing the wire shape).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/Notification"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Opaque cursor for the next page. NULL on the last page. Pass back as ?cursor=\u2026 on the follow-up request.",
+          "title": "Next Cursor"
+        },
+        "unread_count": {
+          "description": "Total unread across all kinds for this tenant. Drives the bell-icon badge; computed cheaply via the partial index on notifications(tenant_id, created_at DESC) WHERE read_at IS NULL.",
+          "minimum": 0,
+          "title": "Unread Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "unread_count"
+      ],
+      "title": "NotificationListResponse",
+      "type": "object"
+    },
+    "NotificationMarkAllReadResponse": {
+      "additionalProperties": false,
+      "description": "Response from ``POST /api/tenant/notifications/mark-all-read``.",
+      "properties": {
+        "marked_count": {
+          "description": "How many notifications transitioned unread \u2192 read.",
+          "minimum": 0,
+          "title": "Marked Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "marked_count"
+      ],
+      "title": "NotificationMarkAllReadResponse",
+      "type": "object"
+    },
+    "NotificationMarkReadRequest": {
+      "additionalProperties": false,
+      "description": "Body for ``PATCH /api/tenant/notifications/{id}``.\n\nIdempotent: setting read=true twice is a no-op. Setting read=false\non an already-read notification clears the marker (rare; supports\nthe \"mark unread\" UI affordance).",
+      "properties": {
+        "read": {
+          "title": "Read",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "read"
+      ],
+      "title": "NotificationMarkReadRequest",
+      "type": "object"
+    },
+    "OptOutViewerPage": {
+      "additionalProperties": false,
+      "description": "Paginated opt-out viewer response.\n\nCursor-based pagination (opaque base64) so a large tenant's opt-out\nlist paginates stably even as new rows arrive. ``total_count`` is\na SELECT COUNT(*) under the same RLS-scoped WHERE \u2014 cheap because\nthe audience_members.opted_out_at partial index makes it an\nindex-only scan.",
+      "properties": {
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Next Cursor"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/OptOutViewerRow"
+          },
+          "title": "Rows",
+          "type": "array"
+        },
+        "total_count": {
+          "title": "Total Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "rows",
+        "next_cursor",
+        "total_count"
+      ],
+      "title": "OptOutViewerPage",
+      "type": "object"
+    },
+    "OptOutViewerRow": {
+      "additionalProperties": false,
+      "description": "One row in the opt-out viewer.\n\nCarries the three PDPA-required columns (opted_out_at,\nopted_out_reason, opted_out_at_channel) plus enough identifying\ninfo that a human agent can confirm \"yes this is the right person\nto NOT re-engage\". phone_number_e164 is intentionally kept \u2014 under\nPDPA, an opt-out list that hides the contact identifier is useless\nfor downstream agents checking before manual outreach.",
+      "properties": {
+        "channel": {
+          "title": "Channel",
+          "type": "string"
+        },
+        "channel_user_id": {
+          "title": "Channel User Id",
+          "type": "string"
+        },
+        "channel_user_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Channel User Name"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "locale": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Locale"
+        },
+        "opted_out_at": {
+          "format": "date-time",
+          "title": "Opted Out At",
+          "type": "string"
+        },
+        "opted_out_at_channel": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Opted Out At Channel"
+        },
+        "opted_out_reason": {
+          "enum": [
+            "stop_keyword",
+            "manual",
+            "dsar_delete"
+          ],
+          "title": "Opted Out Reason",
+          "type": "string"
+        },
+        "phone_number_e164": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Phone Number E164"
+        }
+      },
+      "required": [
+        "id",
+        "channel",
+        "channel_user_id",
+        "channel_user_name",
+        "phone_number_e164",
+        "locale",
+        "opted_out_at",
+        "opted_out_reason",
+        "opted_out_at_channel"
+      ],
+      "title": "OptOutViewerRow",
+      "type": "object"
+    },
+    "PerIntentTierBreakdown": {
+      "additionalProperties": false,
+      "description": "One row of the per-intent-tier table on the per-tenant cost page.\n\nintent_tier mirrors ``polaris_shared_types.llm_response.IntentTier``\nvalues (simple | medium | hard); the 'handoff' Literal value is\nexcluded because handoffs bypass the LLM entirely. Kept as plain\nstring here (not the Literal) because the dashboard surface is\nlabel-driven and we may add tiers post-GA.",
+      "properties": {
+        "avg_cache_read_tokens": {
+          "description": "Non-zero indicates prompt cache is hitting; supports the Phase 4 exit-criterion-1 verification.",
+          "minimum": 0,
+          "title": "Avg Cache Read Tokens",
+          "type": "integer"
+        },
+        "avg_input_tokens": {
+          "minimum": 0,
+          "title": "Avg Input Tokens",
+          "type": "integer"
+        },
+        "avg_output_tokens": {
+          "minimum": 0,
+          "title": "Avg Output Tokens",
+          "type": "integer"
+        },
+        "cache_hit_rate": {
+          "description": "cache_read_tokens / (cache_read_tokens + input_tokens) over the sample. Surfaces in the cost-cutting revisit banner if < 30% after 4 weeks (signals system prompt churning or TTL too short).",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Cache Hit Rate",
+          "type": "number"
+        },
+        "intent_tier": {
+          "description": "simple | medium | hard",
+          "title": "Intent Tier",
+          "type": "string"
+        },
+        "model_used": {
+          "description": "Resolved model per ADR-031 routing \u2014 e.g. 'haiku' or 'sonnet'. Mirrors ``messages.model_used`` values.",
+          "title": "Model Used",
+          "type": "string"
+        },
+        "sample_count": {
+          "description": "Number of LLM calls in the window.",
+          "minimum": 0,
+          "title": "Sample Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "intent_tier",
+        "model_used",
+        "avg_input_tokens",
+        "avg_output_tokens",
+        "avg_cache_read_tokens",
+        "cache_hit_rate",
+        "sample_count"
+      ],
+      "title": "PerIntentTierBreakdown",
+      "type": "object"
+    },
+    "PersistentMenuCallToAction": {
+      "additionalProperties": false,
+      "description": "One entry inside a persistent_menu.call_to_actions array.\n\nTwo flavours: ``postback`` (carries a payload back to the bot) and\n``web_url`` (opens a URL in the Messenger in-app browser).",
+      "properties": {
+        "payload": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Required when type='postback'. Bot postback payload. Meta cap: 1000 chars.",
+          "title": "Payload"
+        },
+        "title": {
+          "description": "Visible CTA label (Meta cap: 30 chars).",
+          "maxLength": 30,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "postback",
+            "web_url"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Required when type='web_url'. https-only per Meta policy. Meta cap: 2048 chars.",
+          "title": "Url"
+        }
+      },
+      "required": [
+        "type",
+        "title"
+      ],
+      "title": "PersistentMenuCallToAction",
+      "type": "object"
+    },
+    "PlanChangeApprovalRequest": {
+      "additionalProperties": false,
+      "description": "Request body for ``POST /api/admin/plan-changes/{id}/approve``.\n\nThe admin frontend supplies an optional decision_note (free-form\ntext shown to the tenant) and an optional override of the\nserver-recomputed proration. If proration_override is omitted, the\nserver's authoritative recomputation is used. If supplied, the\noverride is what lands on the issued invoice \u2014 must be used\nsparingly and with reason in decision_note.",
+      "properties": {
+        "decision_note": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional free-form note surfaced to the tenant in the approval notification + portal Billing screen.",
+          "title": "Decision Note"
+        },
+        "proration_override": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional override of the server-recomputed proration (per 00c \u00a712.4.1). If supplied, decision_note MUST explain why \u2014 typical use is a sales-led one-off adjustment.",
+          "title": "Proration Override"
+        }
+      },
+      "title": "PlanChangeApprovalRequest",
+      "type": "object"
+    },
+    "PlanChangeRejectionRequest": {
+      "additionalProperties": false,
+      "description": "Request body for ``POST /api/admin/plan-changes/{id}/reject``.\n\ndecision_note is required on rejection \u2014 the tenant sees the reason\nin their portal Billing screen.",
+      "properties": {
+        "decision_note": {
+          "description": "Required. Tenant sees this in their portal Billing screen + the plan_change_rejected notification.",
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Decision Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "decision_note"
+      ],
+      "title": "PlanChangeRejectionRequest",
+      "type": "object"
+    },
+    "PlanChangeRequest": {
+      "additionalProperties": false,
+      "description": "Read shape for ``GET /api/tenant/plan-change-requests/{id}`` and\nresponse body of ``POST /api/tenant/plan-change-requests``.\n\nAll timestamps RFC3339 UTC strings (asyncpg datetimes are isoformatted\nat the router layer).",
+      "properties": {
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "current_billing_cycle": {
+          "$ref": "#/$defs/BillingCycle"
+        },
+        "current_tier": {
+          "$ref": "#/$defs/PlanTier"
+        },
+        "decided_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "RFC3339 UTC; NULL while pending.",
+          "title": "Decided At"
+        },
+        "decided_by_user_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Phase 10 admin auth.users.id; NULL while pending.",
+          "title": "Decided By User Id"
+        },
+        "decision_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Decision Note"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "proration_preview": {
+          "$ref": "#/$defs/ProrationPreview"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "requested_by_user_id": {
+          "format": "uuid",
+          "title": "Requested By User Id",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/PlanChangeStatus"
+        },
+        "target_billing_cycle": {
+          "$ref": "#/$defs/BillingCycle"
+        },
+        "target_tier": {
+          "$ref": "#/$defs/PlanTier"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "tenant_id",
+        "requested_by_user_id",
+        "current_tier",
+        "target_tier",
+        "current_billing_cycle",
+        "target_billing_cycle",
+        "proration_preview",
+        "status",
+        "reason",
+        "decision_note",
+        "created_at"
+      ],
+      "title": "PlanChangeRequest",
+      "type": "object"
+    },
+    "PlanChangeRequestCreate": {
+      "additionalProperties": false,
+      "description": "Request body for ``POST /api/tenant/plan-change-requests``.\n\nTenant supplies only target tier + cycle + optional reason. Server\nfills current_tier/current_billing_cycle from tenant_quotas + computes\nproration_preview at insert time.",
+      "properties": {
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional tenant message; surfaces in admin approval UI.",
+          "title": "Reason"
+        },
+        "target_billing_cycle": {
+          "$ref": "#/$defs/BillingCycle"
+        },
+        "target_tier": {
+          "$ref": "#/$defs/PlanTier"
+        }
+      },
+      "required": [
+        "target_tier",
+        "target_billing_cycle"
+      ],
+      "title": "PlanChangeRequestCreate",
+      "type": "object"
+    },
+    "PlanChangeStatus": {
+      "enum": [
+        "pending",
+        "approved",
+        "rejected",
+        "cancelled"
+      ],
+      "title": "PlanChangeStatus",
+      "type": "string"
+    },
+    "PlanTier": {
+      "enum": [
+        "starter",
+        "pro",
+        "ultra",
+        "enterprise"
+      ],
+      "title": "PlanTier",
+      "type": "string"
+    },
+    "PlatformAdmin": {
+      "additionalProperties": false,
+      "description": "Read shape returned by the admin API to the admin frontend.\n\nThe frontend never receives more than this \u2014 there are no tokens or\nsecrets on a platform_admin row. NextAuth holds the session JWT\nindependently.",
+      "properties": {
+        "active": {
+          "description": "Soft-deactivate (FALSE) on departure so audit FKs survive. INSERT sets TRUE; UPDATE flips to FALSE.",
+          "title": "Active",
+          "type": "boolean"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "display_name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "email": {
+          "maxLength": 254,
+          "minLength": 3,
+          "title": "Email",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "last_login_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "RFC3339 UTC; NULL before first login.",
+          "title": "Last Login At"
+        },
+        "last_login_ip": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "IP captured on last successful magic-link consumption \u2014 used as the bound IP for the IP-bind callback per ADR-030 Am.2026-05-20.",
+          "title": "Last Login Ip"
+        },
+        "role": {
+          "$ref": "#/$defs/PlatformAdminRole"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "display_name",
+        "role",
+        "active",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "PlatformAdmin",
+      "type": "object"
+    },
+    "PlatformAdminRole": {
+      "enum": [
+        "platform_admin"
+      ],
+      "title": "PlatformAdminRole",
+      "type": "string"
+    },
+    "PlatformCostSummary": {
+      "additionalProperties": false,
+      "description": "Platform P&L for a month \u2014 fixed vs variable kept separate (no amortization).\n\ngross_margin = \u03a3 MRR \u2212 (\u03a3 per-tenant variable cost + \u03a3 active fixed costs).",
+      "properties": {
+        "active_tenant_count": {
+          "minimum": 0,
+          "title": "Active Tenant Count",
+          "type": "integer"
+        },
+        "fixed_costs": {
+          "description": "Active fixed-cost line items behind total_fixed_cost_myr.",
+          "items": {
+            "$ref": "#/$defs/PlatformFixedCost"
+          },
+          "title": "Fixed Costs",
+          "type": "array"
+        },
+        "gross_margin_myr": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "total_mrr \u2212 total_variable \u2212 total_fixed. May be negative.",
+          "title": "Gross Margin Myr"
+        },
+        "gross_margin_pct": {
+          "description": "gross_margin_myr / total_mrr_myr (0\u20131; negative if loss-making).",
+          "title": "Gross Margin Pct",
+          "type": "number"
+        },
+        "period_yyyymm": {
+          "pattern": "^\\d{6}$",
+          "title": "Period Yyyymm",
+          "type": "string"
+        },
+        "total_fixed_cost_myr": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "\u03a3 active platform_fixed_costs line items.",
+          "title": "Total Fixed Cost Myr"
+        },
+        "total_mrr_myr": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Total Mrr Myr"
+        },
+        "total_variable_cost_myr": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "\u03a3 per-tenant variable (Anthropic + Cohere + OpenRouter).",
+          "title": "Total Variable Cost Myr"
+        }
+      },
+      "required": [
+        "period_yyyymm",
+        "active_tenant_count",
+        "total_mrr_myr",
+        "total_variable_cost_myr",
+        "total_fixed_cost_myr",
+        "gross_margin_myr",
+        "gross_margin_pct"
+      ],
+      "title": "PlatformCostSummary",
+      "type": "object"
+    },
+    "PlatformFixedCost": {
+      "additionalProperties": false,
+      "description": "One operator-entered fixed/global platform cost line item.\n\nFixed costs are NOT measured per tenant (Supabase plan, Redis, VPS,\nGrafana, Sentry, domains, \u2026). The operator maintains these line items in\nthe admin Cost page; the monthly total feeds the platform P&L. Persisted\nin the ``platform_fixed_costs`` table (migration 086).",
+      "properties": {
+        "active": {
+          "default": true,
+          "description": "Inactive line items are excluded from totals.",
+          "title": "Active",
+          "type": "boolean"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional grouping, e.g. infra | observability.",
+          "title": "Category"
+        },
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "label": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "monthly_myr": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Monthly Myr"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "monthly_myr"
+      ],
+      "title": "PlatformFixedCost",
+      "type": "object"
+    },
+    "ProductHit": {
+      "additionalProperties": false,
+      "description": "One row from ``match_products`` / ``match_products_hybrid``.\n\nPer-field semantics mirror ``KnowledgeChunkHit``:\n  * ``rrf_score`` \u2014 primary sort key, higher = better. Always populated.\n  * ``vector_rank`` / ``bm25_rank`` \u2014 1-based ranks within each leg's\n    candidate pool; ``None`` when the product only matched the other\n    leg (FULL OUTER JOIN in the hybrid RPC).\n  * ``distance`` \u2014 populated by the vector-only fallback; ``None`` from\n    the hybrid RPC.",
+      "properties": {
+        "bm25_rank": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bm25 Rank"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "distance": {
+          "anyOf": [
+            {
+              "maximum": 2.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Distance"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "price_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Price Text"
+        },
+        "rrf_score": {
+          "title": "Rrf Score",
+          "type": "number"
+        },
+        "vector_rank": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vector Rank"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "rrf_score"
+      ],
+      "title": "ProductHit",
+      "type": "object"
+    },
+    "ProductImage": {
+      "additionalProperties": false,
+      "description": "Row shape for `tenant_product_images`.",
+      "properties": {
+        "bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bytes"
+        },
+        "content_type": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content Type"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "product_id": {
+          "format": "uuid",
+          "title": "Product Id",
+          "type": "string"
+        },
+        "sort_order": {
+          "minimum": 0,
+          "title": "Sort Order",
+          "type": "integer"
+        },
+        "storage_path": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Storage Path",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        }
+      },
+      "required": [
+        "id",
+        "product_id",
+        "storage_path",
+        "sort_order",
+        "created_at"
+      ],
+      "title": "ProductImage",
+      "type": "object"
+    },
+    "ProrationPreview": {
+      "additionalProperties": false,
+      "description": "Snapshot computed at request time per 00c \u00a712.4.1.\n\nPhase 10 admin recomputes authoritative on approval; the request-time\nsnapshot is a tenant-transparency artifact, not the source of truth.\nIf admin's recomputed amount diverges from this snapshot (e.g. tier\npricing changed between request + approval), admin path surfaces the\ndelta in ``decision_note`` so the tenant sees why.",
+      "properties": {
+        "amount_due_myr": {
+          "description": "Net charge for the change. 0 = tier downgrade with prorated credit consumed by next invoice.",
+          "minimum": 0,
+          "title": "Amount Due Myr",
+          "type": "number"
+        },
+        "period_credited_myr": {
+          "description": "Unused current-period amount credited towards the new tier. 0 if request fires at period boundary.",
+          "minimum": 0,
+          "title": "Period Credited Myr",
+          "type": "number"
+        },
+        "prorate_basis": {
+          "default": "calendar_month",
+          "description": "How the proration was computed. GA uses calendar_month (invoice fires on the 1st per 00c \u00a712.4.1). 'anniversary' is the v2.1+ option for tenants on a custom billing date.",
+          "enum": [
+            "calendar_month",
+            "anniversary"
+          ],
+          "title": "Prorate Basis",
+          "type": "string"
+        },
+        "quota_topup_bot_replies": {
+          "description": "Additional bot_replies headroom granted immediately on approval (tier-up only; tier-down is 0).",
+          "minimum": 0,
+          "title": "Quota Topup Bot Replies",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "amount_due_myr",
+        "period_credited_myr",
+        "quota_topup_bot_replies"
+      ],
+      "title": "ProrationPreview",
+      "type": "object"
+    },
+    "QuotaSaturation": {
+      "additionalProperties": false,
+      "description": "Bot-reply quota saturation across tenants (tenant_usage vs tenant_quotas).",
+      "properties": {
+        "near_cap_count": {
+          "description": "Tenants at >= 80% and < 100%.",
+          "minimum": 0,
+          "title": "Near Cap Count",
+          "type": "integer"
+        },
+        "over_cap_count": {
+          "description": "Tenants at >= 100%.",
+          "minimum": 0,
+          "title": "Over Cap Count",
+          "type": "integer"
+        },
+        "top": {
+          "description": "Highest-saturation tenants (descending).",
+          "items": {
+            "$ref": "#/$defs/QuotaSaturationTenant"
+          },
+          "title": "Top",
+          "type": "array"
+        }
+      },
+      "required": [
+        "near_cap_count",
+        "over_cap_count"
+      ],
+      "title": "QuotaSaturation",
+      "type": "object"
+    },
+    "QuotaSaturationTenant": {
+      "additionalProperties": false,
+      "description": "A single tenant's bot-reply quota saturation this period.",
+      "properties": {
+        "bot_replies": {
+          "description": "Consumed this period.",
+          "minimum": 0,
+          "title": "Bot Replies",
+          "type": "integer"
+        },
+        "cap": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Plan allowance; NULL = uncapped/unknown.",
+          "title": "Cap"
+        },
+        "plan_tier": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Plan Tier"
+        },
+        "tenant_id": {
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "tenant_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tenant Name"
+        },
+        "usage_pct": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "consumed / cap * 100.",
+          "title": "Usage Pct"
+        }
+      },
+      "required": [
+        "tenant_id",
+        "bot_replies"
+      ],
+      "title": "QuotaSaturationTenant",
+      "type": "object"
+    },
+    "QuoteGenerateRequest": {
+      "additionalProperties": false,
+      "description": "Request body for ``POST /api/admin/quotes``.\n\nAll other fields (quote_code, proration_inputs, pdf coordinates,\nexpires_at) are server-computed.",
+      "properties": {
+        "intended_signup_date": {
+          "description": "ISO date YYYY-MM-DD. The prorated first invoice + quota are computed for the partial period from this date through the end of the calendar month (or anniversary cycle if requested via proration_basis).",
+          "title": "Intended Signup Date",
+          "type": "string"
+        },
+        "prospect_company": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prospect Company"
+        },
+        "prospect_email": {
+          "anyOf": [
+            {
+              "maxLength": 254,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prospect Email"
+        },
+        "target_billing_cycle": {
+          "$ref": "#/$defs/BillingCycle"
+        },
+        "target_tier": {
+          "$ref": "#/$defs/PlanTier"
+        }
+      },
+      "required": [
+        "target_tier",
+        "target_billing_cycle",
+        "intended_signup_date"
+      ],
+      "title": "QuoteGenerateRequest",
+      "type": "object"
+    },
+    "QuotePdfMeta": {
+      "additionalProperties": false,
+      "description": "Inline summary shown on the admin frontend before PDF render.\n\nLets the operator confirm the numbers BEFORE the bytes are persisted\nto Supabase Storage. After PDF render this metadata is also serialised\ninto ``sales_quotes.proration_inputs`` for byte-stability across\nre-downloads.",
+      "properties": {
+        "expires_at": {
+          "description": "RFC3339 UTC; default 30 days from generation.",
+          "title": "Expires At",
+          "type": "string"
+        },
+        "first_invoice_myr": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "Prorated charge for the partial first period.",
+          "title": "First Invoice Myr"
+        },
+        "first_period_reply_cap": {
+          "description": "Prorated bot_replies cap for the partial first period.",
+          "minimum": 0,
+          "title": "First Period Reply Cap",
+          "type": "integer"
+        },
+        "headline_price_myr": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "Full-period subscription price for target tier.",
+          "title": "Headline Price Myr"
+        },
+        "headline_reply_cap": {
+          "description": "Full-period bot_replies cap for target tier.",
+          "minimum": 0,
+          "title": "Headline Reply Cap",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "headline_price_myr",
+        "headline_reply_cap",
+        "first_invoice_myr",
+        "first_period_reply_cap",
+        "expires_at"
+      ],
+      "title": "QuotePdfMeta",
+      "type": "object"
+    },
+    "RecentFailures": {
+      "additionalProperties": false,
+      "description": "Recent failure counters + deep-links to the full APM tooling.",
+      "properties": {
+        "errored_broadcasts_last_hour": {
+          "minimum": 0,
+          "title": "Errored Broadcasts Last Hour",
+          "type": "integer"
+        },
+        "failed_recipients_last_hour": {
+          "minimum": 0,
+          "title": "Failed Recipients Last Hour",
+          "type": "integer"
+        },
+        "grafana_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Grafana dashboard URL when configured.",
+          "title": "Grafana Url"
+        },
+        "sentry_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sentry project URL when configured.",
+          "title": "Sentry Url"
+        }
+      },
+      "required": [
+        "errored_broadcasts_last_hour",
+        "failed_recipients_last_hour"
+      ],
+      "title": "RecentFailures",
+      "type": "object"
+    },
+    "RedisStatus": {
+      "additionalProperties": false,
+      "description": "Redis connectivity probe.\n\n``INFO`` aggregation; used_memory_mb shown alongside healthy/error.",
+      "properties": {
+        "error": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "healthy": {
+          "title": "Healthy",
+          "type": "boolean"
+        },
+        "last_checked_at": {
+          "title": "Last Checked At",
+          "type": "string"
+        },
+        "used_memory_mb": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Reported by INFO; NULL when last probe failed.",
+          "title": "Used Memory Mb"
+        }
+      },
+      "required": [
+        "healthy",
+        "last_checked_at"
+      ],
+      "title": "RedisStatus",
+      "type": "object"
+    },
+    "SalesQuote": {
+      "additionalProperties": false,
+      "description": "Read shape for ``GET /api/admin/quotes`` (and the per-id endpoint).\n\nThe PDF download is a separate signed-URL redirect through\n``GET /api/admin/quotes/{id}/pdf``; this shape carries the bucket\ncoordinates only.",
+      "properties": {
+        "converted_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Converted At"
+        },
+        "converted_to_tenant_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set on conversion via ``POST /api/admin/quotes/{id}/convert/{tenant_id}``. NULL while the quote remains unconverted.",
+          "title": "Converted To Tenant Id"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "expires_at": {
+          "title": "Expires At",
+          "type": "string"
+        },
+        "generated_by_admin_id": {
+          "format": "uuid",
+          "title": "Generated By Admin Id",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "intended_signup_date": {
+          "title": "Intended Signup Date",
+          "type": "string"
+        },
+        "pdf_bucket": {
+          "title": "Pdf Bucket",
+          "type": "string"
+        },
+        "pdf_object_key": {
+          "title": "Pdf Object Key",
+          "type": "string"
+        },
+        "proration_inputs": {
+          "additionalProperties": true,
+          "description": "Inputs for re-render: prorate_basis, days_remaining_in_period, headline_price, prorated_invoice, prorated_quota, renderer_version. Combined with the bucketed PDF bytes this gives byte-stable re-downloads per Q-PHASE9-05.",
+          "title": "Proration Inputs",
+          "type": "object"
+        },
+        "prospect_company": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Prospect Company"
+        },
+        "prospect_email": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Prospect Email"
+        },
+        "quote_code": {
+          "pattern": "^POL-Q-[0-9]{2}[0-9]{2}[0-9]+$",
+          "title": "Quote Code",
+          "type": "string"
+        },
+        "target_billing_cycle": {
+          "$ref": "#/$defs/BillingCycle"
+        },
+        "target_tier": {
+          "$ref": "#/$defs/PlanTier"
+        }
+      },
+      "required": [
+        "id",
+        "quote_code",
+        "prospect_email",
+        "prospect_company",
+        "target_tier",
+        "target_billing_cycle",
+        "intended_signup_date",
+        "proration_inputs",
+        "pdf_bucket",
+        "pdf_object_key",
+        "generated_by_admin_id",
+        "converted_at",
+        "expires_at",
+        "created_at"
+      ],
+      "title": "SalesQuote",
+      "type": "object"
+    },
+    "SenderRef": {
+      "description": "Channel-native sender identity.\n\nNOT a Polaris ``tenant_users.user_id`` \u2014 that's the operator side.\n``channel_user_id`` is whatever the provider hands us:\n  - WA:        E.164 phone number ('60123456789')\n  - IG / FB:   the platform's user / page-scoped id\n  - Chatwoot:  the contact id (stringified)\n  - Telegram:  the chat id (stringified numeric; stable per user<->bot)\n\n``display_name`` is best-effort and may be ``None`` on first contact\n(WA doesn't include profile name until the recipient has saved the\nbusiness in their contacts).",
+      "properties": {
+        "channel_user_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Channel User Id",
+          "type": "string"
+        },
+        "display_name": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Display Name"
+        }
+      },
+      "required": [
+        "channel_user_id"
+      ],
+      "title": "SenderRef",
+      "type": "object"
+    },
+    "ServiceConnectivity": {
+      "additionalProperties": false,
+      "description": "HTTP reachability probe for an external service (Chatwoot or EA fork).\n\nhealthy=True when the service returns any HTTP response (even 4xx/401);\nhealthy=False on connection error or timeout. latency_ms is NULL when\nthe probe failed. Reused for both the chatwoot and ea tiles.",
+      "properties": {
+        "error": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "healthy": {
+          "title": "Healthy",
+          "type": "boolean"
+        },
+        "last_checked_at": {
+          "description": "RFC3339 UTC of this probe.",
+          "title": "Last Checked At",
+          "type": "string"
+        },
+        "latency_ms": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Round-trip ms; NULL on failure.",
+          "title": "Latency Ms"
+        }
+      },
+      "required": [
+        "healthy",
+        "last_checked_at"
+      ],
+      "title": "ServiceConnectivity",
+      "type": "object"
+    },
+    "SupabaseStatus": {
+      "additionalProperties": false,
+      "description": "Supabase connectivity probe.\n\nA simple ``SELECT 1`` against the polaris_service pool plus the\ntiming. ``healthy=False`` + error string when the probe fails;\ndb_latency_ms NULL in that case.",
+      "properties": {
+        "db_latency_ms": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "60-second rolling average; NULL when last probe failed.",
+          "title": "Db Latency Ms"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "healthy": {
+          "title": "Healthy",
+          "type": "boolean"
+        },
+        "last_checked_at": {
+          "description": "RFC3339 UTC.",
+          "title": "Last Checked At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "healthy",
+        "last_checked_at"
+      ],
+      "title": "SupabaseStatus",
+      "type": "object"
+    },
+    "TemplateButton": {
+      "additionalProperties": false,
+      "description": "One button inside a BUTTONS component.\n\nQuick-reply buttons carry only ``text``. URL + phone-number buttons\ncarry ``url`` / ``phone_number`` respectively. Meta enforces that\neach component holds at most 3 buttons; we don't repeat that here\nbecause the BUTTONS-component validator below applies the cap.",
+      "properties": {
+        "phone_number": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phone Number"
+        },
+        "text": {
+          "maxLength": 25,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "QUICK_REPLY",
+            "URL",
+            "PHONE_NUMBER"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "required": [
+        "type",
+        "text"
+      ],
+      "title": "TemplateButton",
+      "type": "object"
+    },
+    "TemplateComponent": {
+      "additionalProperties": false,
+      "description": "One component of a Meta message template.\n\nMeta's wire shape is loosely typed (``components[]`` mixes HEADER\nwith TEXT format, BODY with text, FOOTER with text, BUTTONS with\nnested buttons). We keep it loose here too \u2014 a tighter discriminated\nunion on ``type`` would be cleaner but the cost is heavy when most\ntemplates only carry a BODY component anyway.",
+      "properties": {
+        "buttons": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/TemplateButton"
+              },
+              "maxItems": 3,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Buttons"
+        },
+        "example": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Example"
+        },
+        "format": {
+          "anyOf": [
+            {
+              "enum": [
+                "TEXT",
+                "IMAGE",
+                "VIDEO",
+                "DOCUMENT"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Format"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "maxLength": 1024,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "type": {
+          "enum": [
+            "HEADER",
+            "BODY",
+            "FOOTER",
+            "BUTTONS"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "TemplateComponent",
+      "type": "object"
+    },
+    "TenantBranch": {
+      "additionalProperties": false,
+      "description": "Row shape for `tenant_branches`.\n\nBeyond ``name``, the operational columns are surfaced so the portal can edit\nthem: per-branch ``business_hours`` (same shape as ``tenants.business_hours``,\nNULL = inherit tenant default), handoff-message overrides (ADR-019), and the\nEA provider/service routing (migration 080). ``slug`` is read-only.",
+      "properties": {
+        "business_hours": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Business Hours"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "ea_default_service_id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ea Default Service Id"
+        },
+        "ea_provider_id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ea Provider Id"
+        },
+        "handoff_message_after_hours": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Handoff Message After Hours"
+        },
+        "handoff_message_in_hours": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Handoff Message In Hours"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "slug": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Slug"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "tenant_id",
+        "name",
+        "created_at"
+      ],
+      "title": "TenantBranch",
+      "type": "object"
+    },
+    "TenantBranchUpsert": {
+      "additionalProperties": false,
+      "description": "Body shape for create + update.\n\n``name`` is required. The operational fields are optional; on UPDATE a\nnull/omitted field leaves the stored value unchanged (COALESCE semantics),\nso editing hours never clears the provisioning-written ``ea_*`` ids. ``slug``\nis read-only (auto-managed at provisioning) and not settable here.",
+      "properties": {
+        "business_hours": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Business Hours"
+        },
+        "ea_default_service_id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ea Default Service Id"
+        },
+        "ea_provider_id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ea Provider Id"
+        },
+        "handoff_message_after_hours": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Handoff Message After Hours"
+        },
+        "handoff_message_in_hours": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Handoff Message In Hours"
+        },
+        "name": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "TenantBranchUpsert",
+      "type": "object"
+    },
+    "TenantCostMonthly": {
+      "additionalProperties": false,
+      "description": "One row of the all-tenants cost table + the per-tenant detail.\n\nperiod_yyyymm is the calendar month the costs were aggregated over;\ncost_pct_of_mrr drives alert_band. Per-intent-tier list is empty on\nthe all-tenants list endpoint (omitted server-side to keep the\npayload light) and populated on the per-tenant detail endpoint.",
+      "properties": {
+        "alert_band": {
+          "$ref": "#/$defs/AlertBand"
+        },
+        "anthropic_input_cost_myr": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Anthropic Input Cost Myr"
+        },
+        "anthropic_output_cost_myr": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Anthropic Output Cost Myr"
+        },
+        "cohere_rerank_cost_myr": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Cohere Rerank Cost Myr"
+        },
+        "contribution_margin_myr": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "tenant_mrr_myr - total_cost_myr (variable). May be negative.",
+          "title": "Contribution Margin Myr"
+        },
+        "contribution_margin_pct": {
+          "description": "contribution_margin_myr / tenant_mrr_myr (0\u20131; negative if upside-down).",
+          "title": "Contribution Margin Pct",
+          "type": "number"
+        },
+        "cost_pct_of_mrr": {
+          "description": "variable total_cost_myr / tenant_mrr_myr, expressed as 0\u2013N (not 0\u20131) \u2014 0.5 = 50%. Above 1.0 means the tenant's variable cost alone exceeds what they pay.",
+          "minimum": 0,
+          "title": "Cost Pct Of Mrr",
+          "type": "number"
+        },
+        "openrouter_embedding_cost_myr": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Openrouter Embedding Cost Myr"
+        },
+        "per_intent_tier": {
+          "description": "Empty on the all-tenants list endpoint (omitted server-side for payload size); populated on per-tenant detail.",
+          "items": {
+            "$ref": "#/$defs/PerIntentTierBreakdown"
+          },
+          "title": "Per Intent Tier",
+          "type": "array"
+        },
+        "period_yyyymm": {
+          "description": "YYYYMM, e.g. '202606' for June 2026.",
+          "pattern": "^\\d{6}$",
+          "title": "Period Yyyymm",
+          "type": "string"
+        },
+        "supabase_storage_cost_myr": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "Informational only \u2014 Supabase is now a FIXED platform cost (see PlatformCostSummary), NOT part of per-tenant variable cost. Retained for transparency / migration of the external Mimir gauge.",
+          "title": "Supabase Storage Cost Myr"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "tenant_mrr_myr": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Tenant Mrr Myr"
+        },
+        "tenant_name": {
+          "default": "",
+          "description": "Display name of the tenant for UI labelling.",
+          "title": "Tenant Name",
+          "type": "string"
+        },
+        "total_cost_myr": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "Per-tenant VARIABLE cost (Polaris COGS) = Anthropic in/out + Cohere + OpenRouter. EXCLUDES Supabase (now fixed). This is the marginal cost of serving the tenant.",
+          "title": "Total Cost Myr"
+        }
+      },
+      "required": [
+        "tenant_id",
+        "period_yyyymm",
+        "anthropic_input_cost_myr",
+        "anthropic_output_cost_myr",
+        "cohere_rerank_cost_myr",
+        "supabase_storage_cost_myr",
+        "openrouter_embedding_cost_myr",
+        "total_cost_myr",
+        "tenant_mrr_myr",
+        "contribution_margin_myr",
+        "contribution_margin_pct",
+        "cost_pct_of_mrr",
+        "alert_band"
+      ],
+      "title": "TenantCostMonthly",
+      "type": "object"
+    },
+    "TenantInvoice": {
+      "additionalProperties": false,
+      "description": "Read shape for ``GET /api/admin/billing/invoices`` (and the\nper-id endpoint).\n\nColumns from the merged 008 + 054 schema. Legacy ``pdf_url`` is kept\nso pre-Phase-9 rows continue to read; new code populates\n``pdf_bucket`` + ``pdf_object_key`` and lets ``pdf_url`` stay NULL.",
+      "properties": {
+        "amount_myr": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Amount Myr"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "due_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "RFC3339 UTC. NULL on pre-Phase-9 rows; populated for all new issues.",
+          "title": "Due At"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "invoice_number": {
+          "pattern": "^POL-[MA]-[0-9]{2}[0-9]{2}[0-9]+$",
+          "title": "Invoice Number",
+          "type": "string"
+        },
+        "issued_at": {
+          "description": "RFC3339 UTC.",
+          "title": "Issued At",
+          "type": "string"
+        },
+        "marked_paid_by_admin_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "platform_admins.id who clicked Mark Paid. NULL on auto-reconciled or pre-Phase-9 rows.",
+          "title": "Marked Paid By Admin Id"
+        },
+        "paid_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "RFC3339 UTC; NULL until paid.",
+          "title": "Paid At"
+        },
+        "pdf_bucket": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Supabase Storage bucket name. Pairs with pdf_object_key. New rows use this; legacy rows keep pdf_url instead.",
+          "title": "Pdf Bucket"
+        },
+        "pdf_object_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pdf Object Key"
+        },
+        "pdf_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pdf Url"
+        },
+        "period": {
+          "description": "Free-text period label per migration 008.",
+          "title": "Period",
+          "type": "string"
+        },
+        "proration_basis": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "JSONB snapshot of proration inputs per 00c \u00a712.4.1. Nullable in legacy rows.",
+          "title": "Proration Basis"
+        },
+        "status": {
+          "$ref": "#/$defs/InvoiceStatus"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "updated_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "RFC3339 UTC. NULL on pre-Phase-9 rows.",
+          "title": "Updated At"
+        },
+        "void_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Void Reason"
+        }
+      },
+      "required": [
+        "id",
+        "tenant_id",
+        "invoice_number",
+        "period",
+        "amount_myr",
+        "status",
+        "issued_at",
+        "created_at"
+      ],
+      "title": "TenantInvoice",
+      "type": "object"
+    },
+    "TenantProduct": {
+      "additionalProperties": false,
+      "description": "Row shape for `tenant_products` plus its ordered image gallery.",
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "description": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "images": {
+          "items": {
+            "$ref": "#/$defs/ProductImage"
+          },
+          "title": "Images",
+          "type": "array"
+        },
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "price_text": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Price Text"
+        },
+        "sku": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sku"
+        },
+        "tenant_branch_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Tenant Branch Id"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "tenant_id",
+        "tenant_branch_id",
+        "name",
+        "description",
+        "is_active",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "TenantProduct",
+      "type": "object"
+    },
+    "TenantProductUpsert": {
+      "additionalProperties": false,
+      "description": "Body shape for create + update.\n\n``tenant_branch_id`` may be explicitly set to None to clear the branch\nscope on update. ``is_active`` defaults to True so a freshly created\nproduct is immediately eligible for the bot's lookup; pausing requires\nan explicit toggle off. Images are managed via the dedicated\nattach/detach/reorder endpoints (PR-2), not this body.",
+      "properties": {
+        "description": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "is_active": {
+          "default": true,
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "price_text": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Price Text"
+        },
+        "sku": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sku"
+        },
+        "tenant_branch_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tenant Branch Id"
+        }
+      },
+      "required": [
+        "name",
+        "description"
+      ],
+      "title": "TenantProductUpsert",
+      "type": "object"
+    },
+    "TenantPromotion": {
+      "additionalProperties": false,
+      "description": "Row shape for `tenant_promotions`.",
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "description": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "discount_text": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Discount Text",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "tenant_branch_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Tenant Branch Id"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "terms": {
+          "anyOf": [
+            {
+              "maxLength": 4000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Terms"
+        },
+        "title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "valid_from": {
+          "format": "date-time",
+          "title": "Valid From",
+          "type": "string"
+        },
+        "valid_until": {
+          "format": "date-time",
+          "title": "Valid Until",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "tenant_id",
+        "tenant_branch_id",
+        "title",
+        "description",
+        "discount_text",
+        "valid_from",
+        "valid_until",
+        "is_active",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "TenantPromotion",
+      "type": "object"
+    },
+    "TenantPromotionUpsert": {
+      "additionalProperties": false,
+      "description": "Body shape for create + update. ``tenant_branch_id`` may be\nexplicitly set to None to clear the branch scope on update.\n\n``is_active`` defaults to True so a tenant creating a new promo\nsees it immediately on the bot's lookup; pausing requires an\nexplicit toggle off.",
+      "properties": {
+        "description": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "discount_text": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Discount Text",
+          "type": "string"
+        },
+        "is_active": {
+          "default": true,
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "tenant_branch_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tenant Branch Id"
+        },
+        "terms": {
+          "anyOf": [
+            {
+              "maxLength": 4000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Terms"
+        },
+        "title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "valid_from": {
+          "format": "date-time",
+          "title": "Valid From",
+          "type": "string"
+        },
+        "valid_until": {
+          "format": "date-time",
+          "title": "Valid Until",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "description",
+        "discount_text",
+        "valid_from",
+        "valid_until"
+      ],
+      "title": "TenantPromotionUpsert",
+      "type": "object"
+    },
+    "TenantTemplateDTO": {
+      "additionalProperties": false,
+      "description": "Outbound GET /api/tenant/templates row.\n\nIncludes every column the portal lifecycle UI needs:\nsubmission timestamps, current status, the meta_template_id (so the\nportal can deep-link into Meta's Business Manager for templates that\nwere rejected or paused), and the rejection_reason text Meta returned.",
+      "properties": {
+        "category": {
+          "enum": [
+            "AUTHENTICATION",
+            "MARKETING",
+            "UTILITY"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "components": {
+          "items": {
+            "$ref": "#/$defs/TemplateComponent"
+          },
+          "title": "Components",
+          "type": "array"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "language": {
+          "title": "Language",
+          "type": "string"
+        },
+        "last_status_change_at": {
+          "format": "date-time",
+          "title": "Last Status Change At",
+          "type": "string"
+        },
+        "meta_template_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Meta Template Id"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "rejection_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rejection Reason"
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "approved",
+            "rejected",
+            "paused",
+            "disabled"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "submitted_at": {
+          "format": "date-time",
+          "title": "Submitted At",
+          "type": "string"
+        },
+        "tenant_channel_id": {
+          "format": "uuid",
+          "title": "Tenant Channel Id",
+          "type": "string"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "tenant_id",
+        "tenant_channel_id",
+        "name",
+        "language",
+        "category",
+        "status",
+        "meta_template_id",
+        "components",
+        "rejection_reason",
+        "last_status_change_at",
+        "submitted_at",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "TenantTemplateDTO",
+      "type": "object"
+    },
+    "TenantTemplateSubmit": {
+      "additionalProperties": false,
+      "description": "Inbound POST /api/tenant/templates body.\n\n``name`` matches Meta's accepted pattern (lowercase + underscores).\n``language`` is a Meta locale code (en_US, ms_MY, zh_CN). We don't\nenum-restrict it because Meta's allowed set evolves; bad locales\nsurface as 400s from Meta which we wrap into MetaTemplateError.",
+      "properties": {
+        "category": {
+          "enum": [
+            "AUTHENTICATION",
+            "MARKETING",
+            "UTILITY"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "components": {
+          "items": {
+            "$ref": "#/$defs/TemplateComponent"
+          },
+          "minItems": 1,
+          "title": "Components",
+          "type": "array"
+        },
+        "language": {
+          "maxLength": 10,
+          "minLength": 2,
+          "title": "Language",
+          "type": "string"
+        },
+        "name": {
+          "pattern": "^[a-z0-9_]{1,512}$",
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "language",
+        "category",
+        "components"
+      ],
+      "title": "TenantTemplateSubmit",
+      "type": "object"
+    },
+    "TriggeredBy": {
+      "enum": [
+        "scheduled",
+        "on_demand"
+      ],
+      "title": "TriggeredBy",
+      "type": "string"
+    },
+    "VerificationStatus": {
+      "enum": [
+        "intact",
+        "broken",
+        "errored"
+      ],
+      "title": "VerificationStatus",
+      "type": "string"
+    },
+    "WebhookEventBreakdown": {
+      "additionalProperties": false,
+      "description": "Webhook ingest errors over the last 24 h, grouped from ``webhook_events``.\n\nSurfaces the operational ingest problems the volume/freshness webhook tiles\ndon't break out: HMAC failures, tenant-not-found, ChannelNotEntitled,\nsuspended-tenant drops. An \"error\" is any status NOT in the benign set\n(received/processed/replay_ignored/human_handling/demo_routed/\nnon_message_event/chatwoot_deferred). ``by_status`` and ``by_error_class`` are\ntwo additive views of the same total (both sum to ``total_errors_24h``);\n``by_error_class`` aggregates an error_class ACROSS statuses and groups NULL\nunder '(none)'. Lists are capped server-side (top-N status/error_class, most\nrecent N rows). ``error`` is set ONLY when the probe itself failed (DB\noutage) \u2014 the tile must show a distinct state, since all-zero counts would\notherwise read as a healthy \"no errors\".",
+      "properties": {
+        "by_error_class": {
+          "items": {
+            "$ref": "#/$defs/WebhookEventCount"
+          },
+          "title": "By Error Class",
+          "type": "array"
+        },
+        "by_status": {
+          "items": {
+            "$ref": "#/$defs/WebhookEventCount"
+          },
+          "title": "By Status",
+          "type": "array"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set when the probe failed.",
+          "title": "Error"
+        },
+        "grafana_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Grafana logs/explore URL when configured.",
+          "title": "Grafana Url"
+        },
+        "recent": {
+          "items": {
+            "$ref": "#/$defs/WebhookEventError"
+          },
+          "title": "Recent",
+          "type": "array"
+        },
+        "total_errors_24h": {
+          "minimum": 0,
+          "title": "Total Errors 24H",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "total_errors_24h",
+        "by_status",
+        "by_error_class",
+        "recent"
+      ],
+      "title": "WebhookEventBreakdown",
+      "type": "object"
+    },
+    "WebhookEventCount": {
+      "additionalProperties": false,
+      "description": "One (key, count) bucket in the webhook-error breakdown.\n\n``key`` is a ``webhook_events.status`` value (e.g. hmac_fail) or an\n``error_class`` (e.g. ChannelNotEntitled:whatsapp), depending on which list\nit appears in.",
+      "properties": {
+        "count": {
+          "minimum": 0,
+          "title": "Count",
+          "type": "integer"
+        },
+        "key": {
+          "description": "A webhook_events.status value or error_class.",
+          "maxLength": 200,
+          "title": "Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "count"
+      ],
+      "title": "WebhookEventCount",
+      "type": "object"
+    },
+    "WebhookEventError": {
+      "additionalProperties": false,
+      "description": "One recent non-success ``webhook_events`` row for the at-a-glance list.",
+      "properties": {
+        "error_class": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Class"
+        },
+        "received_at": {
+          "description": "RFC3339 UTC.",
+          "title": "Received At",
+          "type": "string"
+        },
+        "source": {
+          "description": "webhook_events.source (meta | chatwoot | \u2026).",
+          "maxLength": 50,
+          "title": "Source",
+          "type": "string"
+        },
+        "status": {
+          "description": "webhook_events.status.",
+          "maxLength": 50,
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "received_at",
+        "source",
+        "status"
+      ],
+      "title": "WebhookEventError",
+      "type": "object"
+    },
+    "WebhookSurfaceHealth": {
+      "additionalProperties": false,
+      "description": "Webhook surface counters drawn from webhook_events.\n\nReused for both telegram and meta webhook surfaces.\nevents_1h, hmac_fail_1h, and tenant_not_found_1h are windowed to the\nlast 1 h to give a fast-moving operational signal.",
+      "properties": {
+        "events_1h": {
+          "description": "Total webhook events in last 1 h.",
+          "minimum": 0,
+          "title": "Events 1H",
+          "type": "integer"
+        },
+        "hmac_fail_1h": {
+          "description": "HMAC validation failures in last 1 h.",
+          "minimum": 0,
+          "title": "Hmac Fail 1H",
+          "type": "integer"
+        },
+        "last_received_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "RFC3339 UTC of most recent webhook event.",
+          "title": "Last Received At"
+        },
+        "tenant_not_found_1h": {
+          "description": "Events with no matching tenant in last 1 h.",
+          "minimum": 0,
+          "title": "Tenant Not Found 1H",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "events_1h",
+        "hmac_fail_1h",
+        "tenant_not_found_1h"
+      ],
+      "title": "WebhookSurfaceHealth",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PolarisSharedTypes",
+  "type": "object"
+}

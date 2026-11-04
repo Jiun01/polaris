@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sales Quote {{ quote_code }}</title>
+  <link rel="stylesheet" href="sales_quote.css" />
+</head>
+<body>
+  <header class="topbar">
+    <img class="brand-logo" src="polaris-logo.svg" alt="Polaris" />
+    <div class="doc-id">
+      <p class="doc-type">Sales Quote</p>
+      <p class="doc-number">{{ quote_code }}</p>
+    </div>
+  </header>
+
+  <section class="parties">
+    <div class="party party-from">
+      <p class="party-label">From</p>
+      {% include "_issuer.html.j2" %}
+    </div>
+    <div class="party party-to">
+      <p class="party-label">Prepared For</p>
+      <p class="party-name">{{ prospect_company | default("Prospective customer", true) }}</p>
+      {% if prospect_email %}<p class="issuer-line">{{ prospect_email }}</p>{% endif %}
+      <table class="meta-table">
+        <tr><th>Issued</th><td>{{ issued_date }}</td></tr>
+        {% if valid_until %}<tr><th>Valid Until</th><td>{{ valid_until }}</td></tr>{% endif %}
+      </table>
+    </div>
+  </section>
+
+  <section class="items">
+    <table>
+      <thead>
+        <tr>
+          <th class="c-desc">Plan</th>
+          <th>Billing Cycle</th>
+          <th>Bot Replies / mo</th>
+          <th class="c-amt">Monthly (MYR)</th>
+          <th class="c-amt">Quote Total (MYR)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="c-desc">{{ target_tier | title }}</td>
+          <td>{{ target_billing_cycle | title }}</td>
+          <td>{{ headline_reply_cap | default("-") }}</td>
+          <td class="c-amt">{{ headline_price_myr }}</td>
+          <td class="c-amt"><strong>{{ amount_due_myr }}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="summary">
+    <table>
+      <tr class="grand">
+        <th>Amount Due</th>
+        <td class="c-amt">MYR {{ amount_due_myr }}</td>
+      </tr>
+    </table>
+  </section>
+
+  {% if proration_ratio and proration_ratio != "1" %}
+  <section class="callout">
+    <p class="callout-title">Mid-Month Proration</p>
+    <p>Prorated for {{ days_billed }} of {{ days_in_period }} days
+    (ratio {{ proration_ratio }}). Bot-reply quota granted this cycle:
+    <strong>{{ quota_topup_bot_replies }}</strong>.</p>
+  </section>
+  {% endif %}
+
+  {% if notes %}
+  <section class="callout callout-plain">
+    <p class="callout-title">Notes</p>
+    <p>{{ notes }}</p>
+  </section>
+  {% endif %}
+
+  <section class="cta">
+    <p>To accept this quote, reply to your Polaris account manager{% if valid_until %} before <strong>{{ valid_until }}</strong>{% endif %}.
+    Pricing and quota above apply on activation.</p>
+  </section>
+
+  <footer class="footer">
+    <span>Polaris &middot; getpolaris.my</span>
+    <span>This quote is not a tax invoice.</span>
+  </footer>
+</body>
+</html>

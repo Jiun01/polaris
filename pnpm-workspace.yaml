@@ -1,0 +1,4 @@
+packages:
+  - "apps/portal"
+  - "apps/admin"
+  - "packages/shared-types"

@@ -1,0 +1,130 @@
+# Polaris v2 — Production Caddyfile (Cloudflare-proxied)
+#
+# All 5 domains run behind Cloudflare orange-cloud proxy.
+# TLS: Cloudflare Origin Certificate (wildcard *.getpolaris.my, 15 yr).
+#   Generate in CF dashboard → SSL/TLS → Origin Server → Create Certificate.
+#   Save cert → /opt/polaris/certs/cf-origin.pem
+#   Save key  → /opt/polaris/certs/cf-origin-key.pem
+#   CF SSL/TLS mode: Full (strict)
+#
+# Firewall: only ports 80 + 443 need to be open to Cloudflare IPs.
+#   Optionally lock the VPS firewall to CF IP ranges only (see CF docs).
+#
+# Loaded by infra/docker-compose.prod.yml caddy service.
+
+{
+  # Trust Cloudflare edge IPs so {client_ip} resolves to the real visitor IP
+  # (not the Cloudflare edge node). Required for admin magic-link IP binding.
+  # Source: https://www.cloudflare.com/ips/
+  servers {
+    trusted_proxies static \
+      173.245.48.0/20 \
+      103.21.244.0/22 \
+      103.22.200.0/22 \
+      103.31.4.0/22 \
+      141.101.64.0/18 \
+      108.162.192.0/18 \
+      190.93.240.0/20 \
+      188.114.96.0/20 \
+      197.234.240.0/22 \
+      198.41.128.0/17 \
+      162.158.0.0/15 \
+      104.16.0.0/13 \
+      104.24.0.0/14 \
+      172.64.0.0/13 \
+      131.0.72.0/22 \
+      2400:cb00::/32 \
+      2606:4700::/32 \
+      2803:f800::/32 \
+      2405:b500::/32 \
+      2405:8100::/32 \
+      2a06:98c0::/29 \
+      2001:67c:2e8::/48
+  }
+}
+
+# Shared snippet — Cloudflare Origin Certificate for *.getpolaris.my
+(cf_tls) {
+  tls /certs/cf-origin.pem /certs/cf-origin-key.pem
+}
+
+api.getpolaris.my {
+  import cf_tls
+
+  # Cap request bodies so an unbounded `await request.body()` on the webhook
+  # handlers can't be used to OOM the API. Real Meta/Chatwoot payloads are << 1MB.
+  request_body {
+    max_size 1MB
+  }
+
+  reverse_proxy polaris-api:8000
+
+  handle_errors {
+    @down expression {http.error.status_code} >= 502
+    handle @down {
+      header Content-Type application/json
+      header Retry-After 60
+      rewrite * /api-503.json
+      file_server {
+        root /etc/caddy/maintenance
+      }
+    }
+  }
+}
+
+portal.getpolaris.my {
+  import cf_tls
+
+  reverse_proxy polaris-portal:3000
+
+  handle_errors {
+    @down expression {http.error.status_code} >= 502
+    handle @down {
+      rewrite * /portal.html
+      file_server {
+        root /etc/caddy/maintenance
+      }
+    }
+  }
+}
+
+admin.getpolaris.my {
+  import cf_tls
+
+  # Defence-in-depth outer gate per ADR-030.
+  # Hash from: docker run --rm caddy:alpine caddy hash-password --plaintext '<pwd>'
+  basic_auth {
+    admin {$CADDY_ADMIN_BASIC_AUTH_HASH}
+  }
+
+  reverse_proxy polaris-admin:3001 {
+    header_up X-Polaris-Caddy-Token {$ADMIN_CADDY_PROXY_TOKEN}
+    # trusted_proxies above resolves {client_ip} to the real visitor IP through CF.
+    header_up X-Real-IP {client_ip}
+    header_up X-Forwarded-For {client_ip}
+  }
+
+  handle_errors {
+    @down expression {http.error.status_code} >= 502
+    handle @down {
+      respond "Admin dashboard temporarily unavailable. Retry in a minute." 503
+    }
+  }
+}
+
+chat.getpolaris.my {
+  import cf_tls
+
+  # Block public access to the Polaris internal endpoint — only reachable
+  # over the internal docker network from polaris-api.
+  @internal path /internal/*
+  respond @internal 403
+
+  reverse_proxy chatwoot-rails:3000
+}
+
+calendar.getpolaris.my {
+  import cf_tls
+
+  reverse_proxy ea-nginx:80
+}

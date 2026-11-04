@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Invoice {{ invoice_number }}</title>
+  <link rel="stylesheet" href="invoice.css" />
+</head>
+<body>
+  <header class="topbar">
+    <img class="brand-logo" src="polaris-logo.svg" alt="Polaris" />
+    <div class="doc-id">
+      <p class="doc-type">{% if issuer_sst %}Tax Invoice{% else %}Invoice{% endif %}</p>
+      <p class="doc-number">{{ invoice_number }}</p>
+    </div>
+  </header>
+
+  <section class="parties">
+    <div class="party party-from">
+      <p class="party-label">From</p>
+      {% include "_issuer.html.j2" %}
+    </div>
+    <div class="party party-to">
+      <p class="party-label">Billed To</p>
+      <p class="party-name">{{ tenant_name }}</p>
+      <table class="meta-table">
+        <tr><th>Issued</th><td>{{ issued_date }}</td></tr>
+        <tr><th>Due</th><td>{{ due_date }}</td></tr>
+        <tr><th>Period</th><td>{{ period_start }} &ndash; {{ period_end }}</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="items">
+    <table>
+      <thead>
+        <tr>
+          <th class="c-desc">Description</th>
+          <th class="c-period">Period</th>
+          <th class="c-amt">Amount (MYR)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="c-desc">{{ invoice_kind | replace("_", " ") | title }}</td>
+          <td class="c-period">{{ period_start }} &ndash; {{ period_end }}</td>
+          <td class="c-amt">{{ subtotal_myr }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="summary">
+    <table>
+      <tr>
+        <th>Subtotal</th>
+        <td class="c-amt">MYR {{ subtotal_myr }}</td>
+      </tr>
+      {% if tax_myr != "0.00" %}
+      <tr>
+        <th>SST (8%)</th>
+        <td class="c-amt">MYR {{ tax_myr }}</td>
+      </tr>
+      {% endif %}
+      <tr class="grand">
+        <th>Total Due</th>
+        <td class="c-amt">MYR {{ total_myr }}</td>
+      </tr>
+    </table>
+  </section>
+
+  {% if invoice_kind == "plan_change_proration" %}
+  <section class="callout">
+    <p class="callout-title">Proration Details</p>
+    <p>Upgrade from <strong>{{ current_tier | default("-") }}</strong> to
+    <strong>{{ target_tier | default("-") }}</strong> &mdash;
+    {{ days_billed | default("-") }} of {{ days_in_period | default("-") }} days billed
+    (ratio {{ proration_ratio | default("-") }}).</p>
+  </section>
+  {% endif %}
+
+  <section class="pay">
+    <p class="pay-title">Payment Details</p>
+    <table class="pay-table">
+      <tr><th>Bank</th><td>{{ pay_bank | default("Maybank") }}</td></tr>
+      <tr><th>Account Name</th><td>{{ pay_acct_name | default("POLARIS TECHNOLOGIES") }}</td></tr>
+      <tr><th>Account No.</th><td>{{ pay_acct_no | default("5623 8482 2777") }}</td></tr>
+      <tr><th>Reference</th><td>{{ invoice_number }}</td></tr>
+    </table>
+    <p class="pay-note">{{ pay_terms | default("Payment due by the date above. Quote the invoice number as your transfer reference.") }}</p>
+  </section>
+
+  <footer class="footer">
+    <span>Polaris &middot; getpolaris.my</span>
+    <span>This is a computer-generated document; no signature required.</span>
+  </footer>
+</body>
+</html>

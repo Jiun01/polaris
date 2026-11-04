@@ -1,0 +1,17 @@
+[Unit]
+Description=Polaris — re-assert Supabase custom-role passwords (anti-drift / anti-ban)
+Documentation=file:///opt/polaris/infra/deploy/README.md
+# DB lives off-box (Supabase); only need the network up.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Must run as the user that owns the deploy + has uv on PATH (the same user that
+# runs vps-update.sh — root in the default install). Adjust User= + the path if
+# your DEPLOY_ROOT differs from /opt.
+User=root
+ExecStart=/opt/polaris/infra/deploy/role-sync.sh
+TimeoutStartSec=300
+# role-sync.sh maps benign Supavisor cache lag to exit 0; a nonzero exit is a
+# real failure worth surfacing in `systemctl status` / journal.

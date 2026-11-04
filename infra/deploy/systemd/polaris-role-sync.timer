@@ -1,0 +1,18 @@
+[Unit]
+Description=Polaris — hourly Supabase custom-role password re-sync
+Documentation=file:///opt/polaris/infra/deploy/README.md
+
+[Timer]
+# First run shortly after boot, then every hour. 1 h is a recovery-latency knob,
+# not a ban-prevention knob (the app-side pool backoff prevents the ban); do not
+# shorten it to compensate for missing backoff.
+OnBootSec=10min
+OnUnitActiveSec=1h
+# Jitter so the re-sync doesn't land exactly on the hour with other cron-like work.
+RandomizedDelaySec=2min
+# Catch up one missed run if the box was off when the timer was due.
+Persistent=true
+Unit=polaris-role-sync.service
+
+[Install]
+WantedBy=timers.target

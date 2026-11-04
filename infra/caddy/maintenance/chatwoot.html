@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chatwoot agent dashboard is briefly unavailable</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui,
+          sans-serif;
+        background: #fafaf9;
+        color: #1a1a1a;
+        display: grid;
+        place-items: center;
+        padding: 2rem;
+      }
+      main {
+        max-width: 540px;
+        text-align: center;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin: 1rem 0 0.5rem;
+      }
+      p {
+        color: #525252;
+        line-height: 1.55;
+        margin: 0.5rem 0;
+      }
+      .icon {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto;
+        border-radius: 999px;
+        background: #f0f0ef;
+        display: grid;
+        place-items: center;
+        color: #525252;
+        font-size: 1.5rem;
+      }
+      .footer {
+        margin-top: 2rem;
+        font-size: 0.75rem;
+        color: #737373;
+      }
+    </style>
+  </head>
+  <body>
+    <main role="alert">
+      <div class="icon" aria-hidden>↺</div>
+      <h1>The agent dashboard is briefly unavailable</h1>
+      <p>Your bot is still answering customer messages on WhatsApp.</p>
+      <p>
+        Handoffs that arrive during this time will queue in your inbox once
+        we're back. This typically takes a few minutes — check
+        <a href="https://status.getpolaris.my">status.getpolaris.my</a>
+        for live updates.
+      </p>
+      <p class="footer">Polaris · getpolaris.my</p>
+    </main>
+  </body>
+</html>

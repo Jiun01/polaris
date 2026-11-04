@@ -1,0 +1,8 @@
+{
+  "error": {
+    "code": "service_unavailable",
+    "message": "Polaris API is temporarily unavailable. Retry in a minute.",
+    "retry_after": 60,
+    "documentation_url": "https://status.getpolaris.my"
+  }
+}

@@ -1,0 +1,48 @@
+# Force LF for all text files so Windows checkouts don't fight prettier/eslint
+# tools that expect Unix line endings. Binary files are excluded.
+
+* text=auto eol=lf
+
+# Explicit text files
+*.md       text eol=lf
+*.txt      text eol=lf
+*.json     text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.toml     text eol=lf
+*.py       text eol=lf
+*.ts       text eol=lf
+*.tsx      text eol=lf
+*.js       text eol=lf
+*.cjs      text eol=lf
+*.mjs      text eol=lf
+*.css      text eol=lf
+*.html     text eol=lf
+*.sql      text eol=lf
+*.sh       text eol=lf
+*.Dockerfile text eol=lf
+Dockerfile text eol=lf
+Makefile   text eol=lf
+
+# Binary files
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.gif      binary
+*.webp     binary
+*.ico      binary
+*.svg      text eol=lf
+*.pdf      binary
+*.woff     binary
+*.woff2    binary
+*.ttf      binary
+*.eot      binary
+
+# ── Public-release boundary ──────────────────────────────────────────────────
+# Paths below never ship in `git archive` snapshots (the public release is a
+# tracked-files-only archive of this repo). Add anything private here rather
+# than relying on .gitignore — export-ignore also covers tracked files.
+/.claude/             export-ignore
+/docs/internal-ops/   export-ignore
+**/deploy.env         export-ignore
+*.local.*             export-ignore

@@ -1,0 +1,76 @@
+name: migration-check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/db-migrations/**"
+      - ".github/workflows/migration-check.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/db-migrations/**"
+      - ".github/workflows/migration-check.yml"
+  # Allow manual runs from the Actions tab + via REST API. Useful for
+  # validating workflow changes that don't touch migrations themselves.
+  workflow_dispatch:
+
+concurrency:
+  group: migration-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apply-against-fresh-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      # pgvector/pgvector:pg17 = official Postgres 17 with pgvector preinstalled.
+      # pg_trgm + pgcrypto are part of postgresql-contrib (included in this image's
+      # base) — no extra install step needed; `CREATE EXTENSION` in 001_extensions.sql
+      # just enables them.
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: polaris
+          POSTGRES_PASSWORD: polaris
+          POSTGRES_DB: polaris
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U polaris"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+    env:
+      POLARIS_DATABASE_URL: postgres://polaris:polaris@localhost:5432/polaris
+      POLARIS_TEST_DATABASE_URL: postgres://polaris:polaris@localhost:5432/polaris
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      # `--all-packages` is required so workspace members' `dependencies`
+      # install (asyncpg lives in packages/db-migrations/pyproject.toml).
+      - name: Install Python deps
+        run: uv sync --all-packages --all-extras
+
+      # The pytest suite owns the apply lifecycle:
+      # test_apply_fresh_then_idempotent runs apply.py twice (first must
+      # report "apply 001_extensions.sql"; second must report "skip").
+      # Earlier this workflow ran apply.py twice BEFORE pytest, which left
+      # the DB pre-migrated and broke the test's "fresh apply" precondition
+      # — the first pytest-driven apply saw "skip" and assertion failed.
+      # POLARIS_TEST_DATABASE_URL is set in the job env above, so the test
+      # is not skipped.
+      - name: Run migration tests
+        run: uv run pytest packages/db-migrations/tests -v

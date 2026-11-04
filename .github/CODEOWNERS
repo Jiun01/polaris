@@ -1,0 +1,16 @@
+# CODEOWNERS — de-facto owner per area
+
+*                              @Jiun01
+
+# Infrastructure + CI
+/.github/                      @Jiun01
+/infra/                        @Jiun01
+/Makefile                      @Jiun01
+/pyproject.toml                @Jiun01
+/package.json                  @Jiun01
+/pnpm-workspace.yaml           @Jiun01
+
+# Security-sensitive paths
+/apps/api/polaris_api/services/secrets.py    @Jiun01
+/packages/db-migrations/                     @Jiun01
+/.env.example                                @Jiun01
